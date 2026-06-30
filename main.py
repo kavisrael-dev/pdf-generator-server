@@ -197,11 +197,11 @@ async def generate_quote(quote: EngineeringQuoteData):
         pdf_bytes = HTML(string=rendered_html).write_pdf()
 
         # החזרת קובץ ה-PDF עצמו ללקוח (ולא שם קובץ)
-        return Response(
+               return Response(
             content=pdf_bytes,
             media_type="application/pdf",
-            headers={
-                "Content-Disposition": f'inline; filename="quote_{quote.quote_number}.pdf"'
+            headers={"Content-Disposition": 'inline; filename="quote.pdf"'},
+        )
             },
         )
     except Exception as e:
