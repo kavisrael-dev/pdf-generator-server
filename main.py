@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from pydantic import BaseModel
 from weasyprint import HTML
 from jinja2 import Template
@@ -192,11 +192,17 @@ async def generate_quote(quote: EngineeringQuoteData):
         # הזנת הנתונים לתוך ה-HTML
         template = Template(HTML_TEMPLATE)
         rendered_html = template.render(data=quote)
-        
-        # שמירת הקובץ
-        output_filename = f"quote_{quote.quote_number}.pdf"
-        HTML(string=rendered_html).write_pdf(output_filename)
-        
-        return {"status": "success", "file_name": output_filename}
+
+        # יצירת ה-PDF כ-bytes (write_pdf ללא שם קובץ מחזיר את התוכן)
+        pdf_bytes = HTML(string=rendered_html).write_pdf()
+
+        # החזרת קובץ ה-PDF עצמו ללקוח (ולא שם קובץ)
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'inline; filename="quote_{quote.quote_number}.pdf"'
+            },
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
