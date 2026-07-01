@@ -189,20 +189,13 @@ HTML_TEMPLATE = """
 @app.post("/generate-quote")
 async def generate_quote(quote: EngineeringQuoteData):
     try:
-        # הזנת הנתונים לתוך ה-HTML
         template = Template(HTML_TEMPLATE)
         rendered_html = template.render(data=quote)
-
-        # יצירת ה-PDF כ-bytes (write_pdf ללא שם קובץ מחזיר את התוכן)
         pdf_bytes = HTML(string=rendered_html).write_pdf()
-
-        # החזרת קובץ ה-PDF עצמו ללקוח (ולא שם קובץ)
-               return Response(
+        return Response(
             content=pdf_bytes,
             media_type="application/pdf",
             headers={"Content-Disposition": 'inline; filename="quote.pdf"'},
-        )
-            },
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
