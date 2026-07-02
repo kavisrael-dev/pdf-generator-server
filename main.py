@@ -53,11 +53,12 @@ HTML_TEMPLATE = """
             font-size: 11pt;
         }
         .header-logo {
-            text-align: right;
-            margin-bottom: 20px;
+            text-align: center;
+            margin-bottom: 18px;
         }
         .header-logo img {
-            width: 120px;
+            width: 360px;
+            max-width: 100%;
         }
         .company-title {
             font-size: 16pt;
@@ -120,9 +121,7 @@ HTML_TEMPLATE = """
 </head>
 <body>
     <div class="header-logo">
-        <!-- ניתן לשלב כאן את לוגו הבית -->
-        <div class="company-title">פ.י. קו הנדסה בע"מ</div>
-        <div class="company-subtitle">תכנון הנדסי, ניהול ופיקוח פרוייקטים הנדסיים</div>
+        <img src="https://sldbtxhfmdhkllmfwusw.supabase.co/storage/v1/object/public/quotes/assets/logo.jpg" alt="פ.י. קו הנדסה בע״מ">
     </div>
     
     <div class="meta-data">
@@ -140,7 +139,7 @@ HTML_TEMPLATE = """
 
     <div>
         <span class="section-title">תאור העבודה:</span> {{ data.work_description }}<br>
-        על פי תוכניות להצעת מחיר שהועברו במייל אדריכלית {{ data.architect_name }}.<br>
+        על פי תוכניות להצעת מחיר שהועברו במייל האדריכל/ית {{ data.architect_name }}.<br>
         המגרש ממוקם ב{{ data.project_location }}
     </div>
 
