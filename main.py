@@ -34,16 +34,17 @@ HTML_TEMPLATE = """
     <style>
         @page {
             size: A4;
-            margin: 15mm 18mm 26mm 18mm;
+            margin: 15mm 18mm 40mm 18mm;
             @bottom-center {
-                content: "פרוכטמן ישראל | פ.י.קו הנדסה בע\\"מ.\\n kavisrael@gmail.com | 050-7568472 | 04-6064455\\n קיבוץ מעוז חיים, ד.נ. עמק המעיינות, 1084500 | www.kav28.co.il";
-                font-size: 10pt;
-                font-family: 'Arial', sans-serif;
-                white-space: pre-line;
-                text-align: center;
-                border-top: 1px solid #ccc;
-                padding-top: 10px;
+                content: element(pageFooter);
             }
+        }
+        .page-footer {
+            position: running(pageFooter);
+            text-align: center;
+        }
+        .page-footer img {
+            width: 150mm;
         }
         body {
             font-family: 'Arial', sans-serif;
@@ -106,7 +107,7 @@ HTML_TEMPLATE = """
             font-size: 10pt;
         }
         .signature-area {
-            margin-top: 28px;
+            margin-top: 60px;
             display: flex;
             justify-content: space-between;
             width: 60%;
@@ -181,6 +182,10 @@ HTML_TEMPLATE = """
         בברכה,<br>
         פרוכטמן ישראל<br>
         פ.י.קו הנדסה בע"מ.
+    </div>
+
+    <div class="page-footer">
+        <img src="https://sldbtxhfmdhkllmfwusw.supabase.co/storage/v1/object/public/quotes/assets/footer.png" alt="פרטי קשר - פ.י.קו הנדסה בע״מ">
     </div>
 </body>
 </html>
