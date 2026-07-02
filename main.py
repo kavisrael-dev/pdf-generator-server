@@ -34,7 +34,7 @@ HTML_TEMPLATE = """
     <style>
         @page {
             size: A4;
-            margin: 25mm 20mm 35mm 20mm;
+            margin: 15mm 18mm 26mm 18mm;
             @bottom-center {
                 content: "פרוכטמן ישראל | פ.י.קו הנדסה בע\\"מ.\\n kavisrael@gmail.com | 050-7568472 | 04-6064455\\n קיבוץ מעוז חיים, ד.נ. עמק המעיינות, 1084500 | www.kav28.co.il";
                 font-size: 10pt;
@@ -49,7 +49,7 @@ HTML_TEMPLATE = """
             font-family: 'Arial', sans-serif;
             direction: rtl;
             color: #000;
-            line-height: 1.5;
+            line-height: 1.4;
             font-size: 11pt;
         }
         .header-logo {
@@ -65,7 +65,7 @@ HTML_TEMPLATE = """
         }
         .company-subtitle {
             font-size: 12pt;
-            margin-bottom: 30px;
+            margin-bottom: 14px;
         }
         .meta-data {
             display: flex;
@@ -75,7 +75,8 @@ HTML_TEMPLATE = """
         .subject {
             font-weight: bold;
             text-decoration: underline;
-            margin-bottom: 15px;
+            text-align: center;
+            margin-bottom: 12px;
         }
         .section-title {
             font-weight: bold;
@@ -100,11 +101,11 @@ HTML_TEMPLATE = """
             padding: 4px;
         }
         .notes {
-            margin-top: 30px;
+            margin-top: 16px;
             font-size: 10pt;
         }
         .signature-area {
-            margin-top: 50px;
+            margin-top: 28px;
             display: flex;
             justify-content: space-between;
             width: 60%;
@@ -131,7 +132,7 @@ HTML_TEMPLATE = """
         </div>
         <div>
             <strong>תאריך:</strong> {{ data.date }}<br>
-            <strong>מס':</strong> {{ data.quote_number }}
+            <strong>מספר פרוייקט:</strong> {{ data.quote_number }}
         </div>
     </div>
 
@@ -177,7 +178,7 @@ HTML_TEMPLATE = """
         <div class="signature-box">חתימה</div>
     </div>
 
-    <div style="margin-top: 40px;">
+    <div style="margin-top: 22px;">
         בברכה,<br>
         פרוכטמן ישראל<br>
         פ.י.קו הנדסה בע"מ.
@@ -189,9 +190,14 @@ HTML_TEMPLATE = """
 @app.post("/generate-quote")
 async def generate_quote(quote: EngineeringQuoteData):
     try:
+        # הזנת הנתונים לתוך ה-HTML
         template = Template(HTML_TEMPLATE)
         rendered_html = template.render(data=quote)
+
+        # יצירת ה-PDF כ-bytes (write_pdf ללא שם קובץ מחזיר את התוכן)
         pdf_bytes = HTML(string=rendered_html).write_pdf()
+
+        # החזרת קובץ ה-PDF עצמו ללקוח (שם קובץ באנגלית בלבד — headers הם latin-1)
         return Response(
             content=pdf_bytes,
             media_type="application/pdf",
