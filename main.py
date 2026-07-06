@@ -50,12 +50,12 @@ HTML_TEMPLATE = """
             font-family: 'Arial', sans-serif;
             direction: rtl;
             color: #000;
-            line-height: 1.4;
+            line-height: 1.3;
             font-size: 11pt;
         }
         .header-logo {
             text-align: center;
-            margin-bottom: 18px;
+            margin-bottom: 10px;
         }
         .header-logo img {
             width: 360px;
@@ -72,17 +72,17 @@ HTML_TEMPLATE = """
         .meta-data {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 20px;
+            margin-bottom: 12px;
         }
         .subject {
             font-weight: bold;
             text-decoration: underline;
             text-align: center;
-            margin-bottom: 12px;
+            margin-bottom: 10px;
         }
         .section-title {
             font-weight: bold;
-            margin-top: 15px;
+            margin-top: 10px;
         }
         ul.scope-list, ul.milestone-list {
             list-style-type: none;
@@ -92,22 +92,22 @@ HTML_TEMPLATE = """
         .price {
             font-weight: bold;
             font-size: 12pt;
-            margin-top: 20px;
+            margin-top: 12px;
         }
         .milestone-table {
             width: 80%;
-            margin-top: 10px;
+            margin-top: 6px;
             border-collapse: collapse;
         }
         .milestone-table td {
             padding: 4px;
         }
         .notes {
-            margin-top: 16px;
+            margin-top: 12px;
             font-size: 10pt;
         }
         .signature-area {
-            margin-top: 60px;
+            margin-top: 42px;
             display: flex;
             justify-content: space-between;
             width: 60%;
@@ -178,7 +178,7 @@ HTML_TEMPLATE = """
         <div class="signature-box">חתימה</div>
     </div>
 
-    <div style="margin-top: 22px;">
+    <div style="margin-top: 12px;">
         בברכה,<br>
         פרוכטמן ישראל<br>
         פ.י.קו הנדסה בע"מ.
