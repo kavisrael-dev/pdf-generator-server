@@ -326,6 +326,114 @@ async def generate_invoice(inv: InvoiceData):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+# ============================================================
+# דוח ביקור באתר (אישור יציקה) — מודל ותבנית
+# ============================================================
+class SiteReportData(BaseModel):
+    date: str                      # 10/11/2025
+    project_number: str            # 5070
+    client_name: str               # משפחת ברדן
+    client_address: str            # מרחביה
+    casting_title: str             # "יציקת יסודות" / "יציקה על קורות עץ"
+    summary: str = "לאחר סיור בשטח קבעתי שניתן לבצע את היציקה."
+    notes: str = "אין הערות מיוחדות. הכל תקין."
+    photo_urls: list[str] = []     # תמונות מהשטח (קישורים ציבוריים)
+
+SITE_REPORT_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page {
+            size: A4;
+            margin: 15mm 18mm 50mm 18mm;
+            @bottom-center { content: element(pageFooter); }
+        }
+        .page-footer { position: running(pageFooter); text-align: center; }
+        .page-footer img { width: 165mm; }
+        body {
+            font-family: 'Arial', sans-serif;
+            direction: rtl;
+            color: #000;
+            line-height: 1.4;
+            font-size: 11pt;
+        }
+        .header-logo { text-align: center; margin-bottom: 10px; }
+        .header-logo img { width: 360px; max-width: 100%; }
+        .meta-data { display: flex; justify-content: space-between; margin-bottom: 12px; }
+        .subject {
+            font-weight: bold;
+            text-decoration: underline;
+            margin: 10px 0 10px 0;
+        }
+        .notes-block { margin-top: 6px; white-space: pre-line; }
+        .signoff { margin-top: 14px; }
+        .signature-img { height: 60px; margin-top: 4px; }
+        .photos { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 4mm; }
+        .photos img {
+            width: 80mm;
+            height: 55mm;
+            object-fit: cover;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+    <div class="header-logo">
+        <img src="https://sldbtxhfmdhkllmfwusw.supabase.co/storage/v1/object/public/quotes/assets/logo.jpg" alt="פ.י. קו הנדסה בע״מ">
+    </div>
+
+    <div class="meta-data">
+        <div>
+            <strong>לכבוד:</strong> {{ data.client_name }}, {{ data.client_address }}
+        </div>
+        <div>
+            <strong>תאריך:</strong> {{ data.date }}<br>
+            <strong>פ:</strong> {{ data.project_number }}
+        </div>
+    </div>
+
+    <div class="subject">הנדון: אישור {{ data.casting_title }}.</div>
+
+    <div>{{ data.summary }}</div>
+    <div class="notes-block">{{ data.notes }}</div>
+
+    <div class="signoff">
+        תודה רבה.<br>
+        בברכה,<br>
+        פרוכטמן ישראל — פ.י.קו הנדסה בע"מ<br>
+        <img class="signature-img" src="https://sldbtxhfmdhkllmfwusw.supabase.co/storage/v1/object/public/quotes/assets/signature.jpg" alt="חתימה וחותמת">
+    </div>
+
+    {% if data.photo_urls %}
+    <div class="photos">
+        {% for url in data.photo_urls %}
+        <img src="{{ url }}" alt="תמונה מהאתר">
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="page-footer">
+        <img src="https://sldbtxhfmdhkllmfwusw.supabase.co/storage/v1/object/public/quotes/assets/footer.png" alt="פרטי קשר - פ.י.קו הנדסה בע״מ">
+    </div>
+</body>
+</html>
+"""
+
+@app.post("/generate-site-report")
+async def generate_site_report(report: SiteReportData):
+    try:
+        template = Template(SITE_REPORT_TEMPLATE)
+        rendered_html = template.render(data=report)
+        pdf_bytes = HTML(string=rendered_html).write_pdf()
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": 'inline; filename="site-report.pdf"'},
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/generate-quote")
 async def generate_quote(quote: EngineeringQuoteData):
