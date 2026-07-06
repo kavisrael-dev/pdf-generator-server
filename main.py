@@ -365,6 +365,8 @@ SITE_REPORT_TEMPLATE = """
         .subject {
             font-weight: bold;
             text-decoration: underline;
+            text-align: center;
+            font-size: 13pt;
             margin: 10px 0 10px 0;
         }
         .notes-block { margin-top: 6px; white-space: pre-line; }
@@ -390,7 +392,7 @@ SITE_REPORT_TEMPLATE = """
         </div>
         <div>
             <strong>תאריך:</strong> {{ data.date }}<br>
-            <strong>פ:</strong> {{ data.project_number }}
+            <strong>פרוייקט:</strong> {{ data.project_number }}
         </div>
     </div>
 
@@ -399,13 +401,6 @@ SITE_REPORT_TEMPLATE = """
     <div>{{ data.summary }}</div>
     <div class="notes-block">{{ data.notes }}</div>
 
-    <div class="signoff">
-        תודה רבה.<br>
-        בברכה,<br>
-        פרוכטמן ישראל — פ.י.קו הנדסה בע"מ<br>
-        <img class="signature-img" src="https://sldbtxhfmdhkllmfwusw.supabase.co/storage/v1/object/public/quotes/assets/signature.jpg" alt="חתימה וחותמת">
-    </div>
-
     {% if data.photo_urls %}
     <div class="photos">
         {% for url in data.photo_urls %}
@@ -413,6 +408,13 @@ SITE_REPORT_TEMPLATE = """
         {% endfor %}
     </div>
     {% endif %}
+
+    <div class="signoff">
+        תודה רבה.<br>
+        בברכה,<br>
+        פרוכטמן ישראל — פ.י.קו הנדסה בע"מ<br>
+        <img class="signature-img" src="https://sldbtxhfmdhkllmfwusw.supabase.co/storage/v1/object/public/quotes/assets/signature.jpg" alt="חתימה וחותמת">
+    </div>
 
     <div class="page-footer">
         <img src="https://sldbtxhfmdhkllmfwusw.supabase.co/storage/v1/object/public/quotes/assets/footer.png" alt="פרטי קשר - פ.י.קו הנדסה בע״מ">
