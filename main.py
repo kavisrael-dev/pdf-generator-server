@@ -356,26 +356,36 @@ SITE_REPORT_TEMPLATE = """
             font-family: 'Arial', sans-serif;
             direction: rtl;
             color: #000;
-            line-height: 1.4;
+            line-height: 1.3;
             font-size: 11pt;
+            /* נעילת גובה התוכן לעמוד אחד + עוגן למיקום החתימה */
+            position: relative;
+            height: 230mm;
+            overflow: hidden;
         }
-        .header-logo { text-align: center; margin-bottom: 10px; }
-        .header-logo img { width: 360px; max-width: 100%; }
-        .meta-data { display: flex; justify-content: space-between; margin-bottom: 12px; }
+        .header-logo { text-align: center; margin-bottom: 8px; }
+        .header-logo img { width: 330px; max-width: 100%; }
+        .meta-data { display: flex; justify-content: space-between; margin-bottom: 8px; }
         .subject {
             font-weight: bold;
             text-decoration: underline;
             text-align: center;
             font-size: 13pt;
-            margin: 10px 0 10px 0;
+            margin: 8px 0 8px 0;
         }
-        .notes-block { margin-top: 6px; white-space: pre-line; }
-        .signoff { margin-top: 14px; }
-        .signature-img { height: 60px; margin-top: 4px; }
-        .photos { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 4mm; }
+        .notes-block { margin-top: 4px; white-space: pre-line; }
+        /* בברכה + שם + חתימה — תמיד בפינה השמאלית-תחתונה של הדף */
+        .signoff {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            text-align: left;
+        }
+        .signature-img { height: 52px; margin-top: 2px; }
+        .photos { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 3mm; }
         .photos img {
-            width: 80mm;
-            height: 55mm;
+            width: 76mm;
+            height: 48mm;
             object-fit: cover;
             border: 1px solid #ccc;
         }
@@ -400,6 +410,7 @@ SITE_REPORT_TEMPLATE = """
 
     <div>{{ data.summary }}</div>
     <div class="notes-block">{{ data.notes }}</div>
+    <div>תודה רבה.</div>
 
     {% if data.photo_urls %}
     <div class="photos">
@@ -410,7 +421,6 @@ SITE_REPORT_TEMPLATE = """
     {% endif %}
 
     <div class="signoff">
-        תודה רבה.<br>
         בברכה,<br>
         פרוכטמן ישראל — פ.י.קו הנדסה בע"מ<br>
         <img class="signature-img" src="https://sldbtxhfmdhkllmfwusw.supabase.co/storage/v1/object/public/quotes/assets/signature.jpg" alt="חתימה וחותמת">
