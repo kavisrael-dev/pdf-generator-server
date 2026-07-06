@@ -18,8 +18,8 @@ class EngineeringQuoteData(BaseModel):
     client_address: str
     subject: str
     work_description: str
-    architect_name: str
-    project_location: str
+    architect_name: str = ""       # אופציונלי — רק כשיש אדריכל/ית חיצוני/ת
+    project_location: str = ""     # אופציונלי — שורת "המגרש ממוקם ב..."
     scope_items: list[str]
     total_price: int
     milestones: list[PaymentMilestone]
@@ -138,10 +138,10 @@ HTML_TEMPLATE = """
 
     <div class="subject">הנדון: {{ data.subject }}</div>
 
-    <div>
+        <div>
         <span class="section-title">תאור העבודה:</span> {{ data.work_description }}<br>
-        על פי תוכניות להצעת מחיר שהועברו במייל האדריכל/ית {{ data.architect_name }}.<br>
-        המגרש ממוקם ב{{ data.project_location }}
+        {% if data.architect_name %}על פי תוכניות להצעת מחיר שהועברו במייל האדריכל/ית {{ data.architect_name }}.<br>{% endif %}
+        {% if data.project_location %}המגרש ממוקם ב{{ data.project_location }}{% endif %}
     </div>
 
     <div class="section-title">התכנון כולל:</div>
