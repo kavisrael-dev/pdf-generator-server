@@ -15,7 +15,10 @@ class EngineeringQuoteData(BaseModel):
     date: str
     quote_number: str
     client_name: str
-    client_address: str
+   client_address: str
+    client_phone: str = ""
+    client_email: str = ""
+    client_id_number: str = ""
     subject: str
     work_description: str
     architect_name: str = ""       # אופציונלי — רק כשיש אדריכל/ית חיצוני/ת
@@ -128,7 +131,10 @@ HTML_TEMPLATE = """
     <div class="meta-data">
         <div>
             <strong>לכבוד:</strong> {{ data.client_name }}<br>
-            {{ data.client_address }}
+                       {{ data.client_address }}<br>
+            {% if data.client_phone %}טלפון: <span dir="ltr">{{ data.client_phone }}</span><br>{% endif %}
+            {% if data.client_email %}מייל: <span dir="ltr">{{ data.client_email }}</span><br>{% endif %}
+            {% if data.client_id_number %}ת.ז: <span dir="ltr">{{ data.client_id_number }}</span>{% endif %}
         </div>
         <div>
             <strong>תאריך:</strong> {{ data.date }}<br>
