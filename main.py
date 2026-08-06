@@ -16,12 +16,12 @@ class EngineeringQuoteData(BaseModel):
     quote_number: str
     client_name: str
     client_address: str
-    client_phone: str = ""
-    client_email: str = ""
-    client_id_number: str = ""
+    client_phone: str = ""         # טלפון הלקוח
+    client_email: str = ""         # מייל הלקוח
+    client_id_number: str = ""     # תעודת זהות — לחשבוניות מס
     subject: str
     work_description: str
-    architect_name: str = ""       # אופציונלי — רק כשיש אדריכל/ית חיצוני/ת
+    architect_name: str = ""       # אופציונלי — רק כשיש אדריכל/ית חיצוני/ת שהעביר/ה תוכניות
     project_location: str = ""     # אופציונלי — שורת "המגרש ממוקם ב..."
     scope_items: list[str]
     total_price: int
@@ -127,11 +127,11 @@ HTML_TEMPLATE = """
     <div class="header-logo">
         <img src="https://sldbtxhfmdhkllmfwusw.supabase.co/storage/v1/object/public/quotes/assets/logo.jpg" alt="פ.י. קו הנדסה בע״מ">
     </div>
-
+    
     <div class="meta-data">
         <div>
             <strong>לכבוד:</strong> {{ data.client_name }}<br>
-                       {{ data.client_address }}<br>
+            {{ data.client_address }}<br>
             {% if data.client_phone %}טלפון: <span dir="ltr">{{ data.client_phone }}</span><br>{% endif %}
             {% if data.client_email %}מייל: <span dir="ltr">{{ data.client_email }}</span><br>{% endif %}
             {% if data.client_id_number %}ת.ז: <span dir="ltr">{{ data.client_id_number }}</span>{% endif %}
@@ -144,7 +144,7 @@ HTML_TEMPLATE = """
 
     <div class="subject">הנדון: {{ data.subject }}</div>
 
-        <div>
+    <div>
         <span class="section-title">תאור העבודה:</span> {{ data.work_description }}<br>
         {% if data.architect_name %}על פי תוכניות להצעת מחיר שהועברו במייל האדריכל/ית {{ data.architect_name }}.<br>{% endif %}
         {% if data.project_location %}המגרש ממוקם ב{{ data.project_location }}{% endif %}
@@ -209,6 +209,7 @@ class InvoiceData(BaseModel):
     total_fee: int                 # שכ"ט כללי לפני מע"מ
     payment_amount: int            # סכום התשלום הנוכחי לפני מע"מ
     milestone_note: str = ""       # למשל: "(סעיף ב+ג 50%)"
+    is_partial: bool = True        # False = תשלום יחיד (הצעה עם שלב אחד) — "חשבון" ולא "חשבון חלקי"
     vat_percent: int = 18
     payment_terms: str = "שוטף+30"
     due_date: str = ""             # 30/06/2026
@@ -267,7 +268,7 @@ INVOICE_TEMPLATE = """
         </div>
     </div>
 
-    <div class="subject">הנדון: חשבון חלקי מס' {{ data.invoice_number }}</div>
+    <div class="subject">הנדון: חשבון {% if data.is_partial %}חלקי {% endif %}מס' {{ data.invoice_number }}</div>
 
     <div>{{ data.work_description }}</div>
 
@@ -314,24 +315,6 @@ INVOICE_TEMPLATE = """
 </html>
 """
 
-@app.post("/generate-invoice")
-async def generate_invoice(inv: InvoiceData):
-    try:
-        # חישוב מע"מ וסה"כ בקוד — אף פעם לא מוזן ידנית, כדי שלא יצא חשבון שגוי
-        vat_amount = round(inv.payment_amount * inv.vat_percent / 100)
-        total_with_vat = inv.payment_amount + vat_amount
-
-        template = Template(INVOICE_TEMPLATE)
-        rendered_html = template.render(data=inv, vat_amount=vat_amount, total_with_vat=total_with_vat)
-        pdf_bytes = HTML(string=rendered_html).write_pdf()
-
-        return Response(
-            content=pdf_bytes,
-            media_type="application/pdf",
-            headers={"Content-Disposition": 'inline; filename="invoice.pdf"'},
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 # ============================================================
 # דוח ביקור באתר (אישור יציקה) — מודל ותבנית
 # ============================================================
@@ -340,7 +323,7 @@ class SiteReportData(BaseModel):
     project_number: str            # 5070
     client_name: str               # משפחת ברדן
     client_address: str            # מרחביה
-    casting_title: str             # "יציקת יסודות" / "יציקה על קורות עץ"
+    casting_title: str             # "יציקת יסודות" / "יציקה על קורות עץ" — הנדון: אישור <casting_title>
     summary: str = "לאחר סיור בשטח קבעתי שניתן לבצע את היציקה."
     notes: str = "אין הערות מיוחדות. הכל תקין."
     photo_urls: list[str] = []     # תמונות מהשטח (קישורים ציבוריים)
@@ -457,6 +440,25 @@ async def generate_site_report(report: SiteReportData):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/generate-invoice")
+async def generate_invoice(inv: InvoiceData):
+    try:
+        # חישוב מע"מ וסה"כ בקוד — אף פעם לא מוזן ידנית, כדי שלא יצא חשבון שגוי
+        vat_amount = round(inv.payment_amount * inv.vat_percent / 100)
+        total_with_vat = inv.payment_amount + vat_amount
+
+        template = Template(INVOICE_TEMPLATE)
+        rendered_html = template.render(data=inv, vat_amount=vat_amount, total_with_vat=total_with_vat)
+        pdf_bytes = HTML(string=rendered_html).write_pdf()
+
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": 'inline; filename="invoice.pdf"'},
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/generate-quote")
 async def generate_quote(quote: EngineeringQuoteData):
     try:
@@ -467,7 +469,9 @@ async def generate_quote(quote: EngineeringQuoteData):
         # יצירת ה-PDF כ-bytes (write_pdf ללא שם קובץ מחזיר את התוכן)
         pdf_bytes = HTML(string=rendered_html).write_pdf()
 
-        # החזרת קובץ ה-PDF עצמו ללקוח (שם קובץ באנגלית בלבד — headers הם latin-1)
+        # החזרת קובץ ה-PDF עצמו ללקוח (ולא שם קובץ).
+        # שם הקובץ ב-header חייב להיות באנגלית בלבד — headers ב-HTTP הם latin-1,
+        # ושם עם עברית (כמו "פ6300") גורם לקריסה. השם האמיתי נקבע בעת השמירה ב-Supabase.
         return Response(
             content=pdf_bytes,
             media_type="application/pdf",
