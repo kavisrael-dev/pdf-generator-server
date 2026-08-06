@@ -127,7 +127,7 @@ HTML_TEMPLATE = """
     <div class="header-logo">
         <img src="https://sldbtxhfmdhkllmfwusw.supabase.co/storage/v1/object/public/quotes/assets/logo.jpg" alt="פ.י. קו הנדסה בע״מ">
     </div>
-    
+
     <div class="meta-data">
         <div>
             <strong>לכבוד:</strong> {{ data.client_name }}<br>
@@ -388,12 +388,16 @@ SITE_REPORT_TEMPLATE = """
             text-align: left;
         }
         .signature-img { height: 52px; margin-top: 2px; }
-        .photos { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 3mm; }
+        .photos { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 3mm; justify-content: center; }
         .photos img {
             width: 76mm;
             height: 48mm;
             object-fit: cover;
             border: 1px solid #ccc;
+        }
+        .photos.single img {
+            width: 150mm;
+            height: 94mm;
         }
     </style>
 </head>
@@ -419,7 +423,7 @@ SITE_REPORT_TEMPLATE = """
     <div>תודה רבה.</div>
 
     {% if data.photo_urls %}
-    <div class="photos">
+    <div class="photos{% if data.photo_urls|length == 1 %} single{% endif %}">
         {% for url in data.photo_urls %}
         <img src="{{ url }}" alt="תמונה מהאתר">
         {% endfor %}
