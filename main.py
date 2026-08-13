@@ -441,8 +441,12 @@ class SupervisionQuoteData(BaseModel):
     pre_construction_items: list[str]  # ניהול מקדים — תיאום מכרזים, בדיקת כתבי כמויות...
     supervision_items: list[str]       # פיקוח שוטף — ליווי שטח, מעקב קבלנים...
     monthly_fee: int                   # 6400
-    payment_terms: str = "מזומן חודשי בתחילת ביצוע, תשלום ראשון כמקדמה במועד החתימה."
-    supervisor_name: str = "ישראל פרוכטמן"
+    payment_terms_items: list[str] = [
+        "תשלום ראשון כמקדמה במעמד מועד החתימה.",
+        "תשלום שני בתחילת העבודות באתר.",
+        "שאר התשלומים בראשון לכל חודש עד סוף ההסכם.",
+        "יש לבצע את התשלום בהעברה בנקאית ולהעביר אישור העברה.",
+    ]
 
 SUPERVISION_QUOTE_TEMPLATE = """
 <!DOCTYPE html>
@@ -518,31 +522,28 @@ SUPERVISION_QUOTE_TEMPLATE = """
             padding-right: 16px;
         }
         ol.task-list li { margin-bottom: 3px; }
-        .service-note {
-            margin-top: 8px;
-            font-size: 9.5pt;
-            color: #444;
-            text-align: center;
+        .bottom-row {
+            display: flex;
+            gap: 6mm;
+            margin-top: 10px;
+            align-items: stretch;
         }
         .price-box {
-            margin: 12px auto 0 auto;
-            width: fit-content;
+            flex: 0 0 30%;
             border: 1.5px solid #1e4d6b;
             border-radius: 4px;
-            padding: 8px 26px;
+            padding: 8px 10px;
             text-align: center;
+            align-self: center;
         }
         .price-box .amount {
-            font-size: 15pt;
+            font-size: 14pt;
             font-weight: bold;
             color: #1e4d6b;
         }
         .price-box .amount-note { font-size: 9.5pt; color: #555; margin-top: 1px; }
-        .payment-terms {
-            margin-top: 10px;
-            text-align: center;
-            font-size: 9.5pt;
-        }
+        .payment-section { flex: 1; }
+        .payment-section ol.task-list li { margin-bottom: 2px; }
         .signature-area {
             position: absolute;
             bottom: 6mm;
@@ -606,14 +607,22 @@ SUPERVISION_QUOTE_TEMPLATE = """
         </div>
     </div>
 
-    <div class="service-note">השירותים ניתנים באופן אישי ע"י {{ data.supervisor_name }}.</div>
-
-    <div class="price-box">
-        <div class="amount">{{ "{:,.0f}".format(data.monthly_fee) }} ₪ לחודש</div>
-        <div class="amount-note">לפני מע"מ</div>
+    <div class="bottom-row">
+        <div class="price-box">
+            <div class="amount">{{ "{:,.0f}".format(data.monthly_fee) }} ₪ לחודש</div>
+            <div class="amount-note">לפני מע"מ</div>
+        </div>
+        <div class="payment-section">
+            <div class="col-header">שלבי ותנאי התשלום</div>
+            <div class="col-body">
+                <ol class="task-list">
+                    {% for item in data.payment_terms_items %}
+                    <li>{{ item }}</li>
+                    {% endfor %}
+                </ol>
+            </div>
+        </div>
     </div>
-
-    <div class="payment-terms">{{ data.payment_terms }}</div>
 
     <div class="signature-area">
         <div class="signature-box">
