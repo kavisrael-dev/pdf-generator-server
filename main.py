@@ -426,6 +426,227 @@ SITE_REPORT_TEMPLATE = """
 </html>
 """
 
+# ============================================================
+# הצעת ניהול ופיקוח (שכ"ט חודשי קבוע, לא שלבי אחוזים) — מודל ותבנית
+# ============================================================
+class SupervisionQuoteData(BaseModel):
+    date: str                          # 10/06/2026
+    quote_number: str                  # "6262-1"
+    client_name: str                   # דודו איתן
+    client_address: str                # אשדות יעקב איחוד
+    client_phone: str = ""
+    client_email: str = ""
+    client_id_number: str = ""
+    project_description: str           # "ניהול ופיקוח בניה תוספת בניה לבית מגורים קיים"
+    pre_construction_items: list[str]  # ניהול מקדים — תיאום מכרזים, בדיקת כתבי כמויות...
+    supervision_items: list[str]       # פיקוח שוטף — ליווי שטח, מעקב קבלנים...
+    monthly_fee: int                   # 6400
+    payment_terms: str = "מזומן חודשי בתחילת ביצוע, תשלום ראשון כמקדמה במועד החתימה."
+    supervisor_name: str = "ישראל פרוכטמן"
+
+SUPERVISION_QUOTE_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page {
+            size: A4;
+            margin: 12mm 16mm 46mm 16mm;
+            @bottom-center { content: element(pageFooter); }
+        }
+        .page-footer { position: running(pageFooter); text-align: center; }
+        .page-footer img { width: 165mm; }
+        body {
+            font-family: 'Arial', sans-serif;
+            direction: rtl;
+            color: #1a1a1a;
+            line-height: 1.28;
+            font-size: 10pt;
+            position: relative;
+            height: 232mm;
+            overflow: hidden;
+        }
+        .header-logo { text-align: center; margin-bottom: 6px; }
+        .header-logo img { width: 300px; max-width: 100%; }
+        .meta-data {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1.5px solid #1e4d6b;
+        }
+        .meta-data .label { color: #1e4d6b; font-weight: bold; }
+        .title-block {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .title-block .main-title {
+            font-size: 15pt;
+            font-weight: bold;
+            color: #1e4d6b;
+            letter-spacing: 0.3px;
+        }
+        .title-block .subtitle {
+            font-size: 10.5pt;
+            margin-top: 3px;
+            color: #333;
+        }
+        .columns {
+            display: flex;
+            gap: 6mm;
+            margin-top: 8px;
+        }
+        .col { flex: 1; }
+        .col-header {
+            background: #1e4d6b;
+            color: #fff;
+            font-weight: bold;
+            font-size: 10.5pt;
+            padding: 4px 8px;
+            border-radius: 3px 3px 0 0;
+        }
+        .col-body {
+            border: 1px solid #cdd8de;
+            border-top: none;
+            padding: 6px 8px;
+            border-radius: 0 0 3px 3px;
+            min-height: 100%;
+        }
+        ol.task-list {
+            margin: 0;
+            padding-right: 16px;
+        }
+        ol.task-list li { margin-bottom: 3px; }
+        .service-note {
+            margin-top: 8px;
+            font-size: 9.5pt;
+            color: #444;
+            text-align: center;
+        }
+        .price-box {
+            margin: 12px auto 0 auto;
+            width: fit-content;
+            border: 1.5px solid #1e4d6b;
+            border-radius: 4px;
+            padding: 8px 26px;
+            text-align: center;
+        }
+        .price-box .amount {
+            font-size: 15pt;
+            font-weight: bold;
+            color: #1e4d6b;
+        }
+        .price-box .amount-note { font-size: 9.5pt; color: #555; margin-top: 1px; }
+        .payment-terms {
+            margin-top: 10px;
+            text-align: center;
+            font-size: 9.5pt;
+        }
+        .signature-area {
+            position: absolute;
+            bottom: 6mm;
+            right: 16mm;
+            left: 16mm;
+            display: flex;
+            justify-content: space-between;
+        }
+        .signature-box {
+            width: 45%;
+            text-align: center;
+        }
+        .signature-box .role { font-weight: bold; margin-bottom: 22px; }
+        .signature-box .line { border-top: 1px solid #000; padding-top: 3px; font-size: 9pt; color: #555; }
+    </style>
+</head>
+<body>
+    <div class="header-logo">
+        <img src="https://sldbtxhfmdhkllmfwusw.supabase.co/storage/v1/object/public/quotes/assets/logo.jpg" alt="פ.י. קו הנדסה בע״מ">
+    </div>
+
+    <div class="meta-data">
+        <div>
+            <span class="label">לכבוד:</span> {{ data.client_name }}<br>
+            {{ data.client_address }}<br>
+            {% if data.client_phone %}טלפון: <span dir="ltr">{{ data.client_phone }}</span><br>{% endif %}
+            {% if data.client_email %}מייל: <span dir="ltr">{{ data.client_email }}</span><br>{% endif %}
+            {% if data.client_id_number %}ת.ז: <span dir="ltr">{{ data.client_id_number }}</span>{% endif %}
+        </div>
+        <div style="text-align: left;">
+            <span class="label">תאריך:</span> {{ data.date }}<br>
+            <span class="label">מספר:</span> {{ data.quote_number }}
+        </div>
+    </div>
+
+    <div class="title-block">
+        <div class="main-title">הסכם ניהול ופיקוח</div>
+        <div class="subtitle">{{ data.project_description }}</div>
+    </div>
+
+    <div class="columns">
+        <div class="col">
+            <div class="col-header">ניהול מקדים</div>
+            <div class="col-body">
+                <ol class="task-list">
+                    {% for item in data.pre_construction_items %}
+                    <li>{{ item }}</li>
+                    {% endfor %}
+                </ol>
+            </div>
+        </div>
+        <div class="col">
+            <div class="col-header">פיקוח שוטף</div>
+            <div class="col-body">
+                <ol class="task-list">
+                    {% for item in data.supervision_items %}
+                    <li>{{ item }}</li>
+                    {% endfor %}
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <div class="service-note">השירותים ניתנים באופן אישי ע"י {{ data.supervisor_name }}.</div>
+
+    <div class="price-box">
+        <div class="amount">{{ "{:,.0f}".format(data.monthly_fee) }} ₪ לחודש</div>
+        <div class="amount-note">לפני מע"מ</div>
+    </div>
+
+    <div class="payment-terms">{{ data.payment_terms }}</div>
+
+    <div class="signature-area">
+        <div class="signature-box">
+            <div class="role">המזמין</div>
+            <div class="line">חתימה + ת.ז</div>
+        </div>
+        <div class="signature-box">
+            <div class="role">המתכנן — פ.י.קו הנדסה בע"מ</div>
+            <div class="line">חתימה</div>
+        </div>
+    </div>
+
+    <div class="page-footer">
+        <img src="https://sldbtxhfmdhkllmfwusw.supabase.co/storage/v1/object/public/quotes/assets/footer.png" alt="פרטי קשר - פ.י.קו הנדסה בע״מ">
+    </div>
+</body>
+</html>
+"""
+
+@app.post("/generate-supervision-quote")
+async def generate_supervision_quote(quote: SupervisionQuoteData):
+    try:
+        template = Template(SUPERVISION_QUOTE_TEMPLATE)
+        rendered_html = template.render(data=quote)
+        pdf_bytes = HTML(string=rendered_html).write_pdf()
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": 'inline; filename="supervision-quote.pdf"'},
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/generate-site-report")
 async def generate_site_report(report: SiteReportData):
     try:
