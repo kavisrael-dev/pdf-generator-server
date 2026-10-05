@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from weasyprint import HTML
 from jinja2 import Template
 
@@ -641,6 +641,125 @@ SUPERVISION_QUOTE_TEMPLATE = """
 </body>
 </html>
 """
+
+# ============================================================
+# דוח ניהול/פיקוח — ביקור, ישיבה או סיור באתר. גוף הדוח טקסט חופשי,
+# אבל הכותרת קבועה ותמיד מלאה: לקוח, יישוב, תאריך, מ.פ.
+# בניגוד לאישור יציקה: בלי נוסח קבוע ובלי נעילה לעמוד אחד — דוח ישיבה יכול להיות ארוך.
+# ============================================================
+class ManagementReportData(BaseModel):
+    date: str = Field(min_length=1)            # 05/10/2026
+    project_number: str = Field(min_length=1)  # 6269 / 6262-1
+    client_name: str = Field(min_length=1)     # משפחת לזר
+    settlement: str = Field(min_length=1)      # מעגן
+    subject: str = 'דו"ח ביקור באתר'           # הנדון: <subject>.
+    body: str = Field(min_length=1)            # הטקסט החופשי — שבירות השורות נשמרות כמו שהן
+    photo_urls: list[str] = []
+
+MANAGEMENT_REPORT_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page {
+            size: A4;
+            margin: 15mm 18mm 50mm 18mm;
+            @bottom-center { content: element(pageFooter); }
+        }
+        .page-footer { position: running(pageFooter); text-align: center; }
+        .page-footer img { width: 165mm; }
+        body {
+            font-family: 'Arial', sans-serif;
+            direction: rtl;
+            color: #000;
+            line-height: 1.5;
+            font-size: 12pt;
+        }
+        .header-logo { text-align: center; margin-bottom: 14px; }
+        .header-logo img { width: 330px; max-width: 100%; }
+        .meta-data { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 10px; }
+        .meta-data .to-label { text-decoration: underline; }
+        .subject {
+            font-weight: bold;
+            text-decoration: underline;
+            text-align: center;
+            font-size: 17pt;
+            margin: 16px 0 18px 0;
+        }
+        .report-body { white-space: pre-line; }
+        .signoff { margin-top: 30px; text-align: left; page-break-inside: avoid; }
+        .signoff .greeting { font-size: 13pt; }
+        .signature-img { height: 60px; margin-top: 2px; }
+        .photos { margin-top: 18px; text-align: center; }
+        .photos .photos-title { font-weight: bold; text-align: right; margin-bottom: 4px; }
+        .photos img {
+            display: inline-block;
+            width: 76mm;
+            height: 52mm;
+            object-fit: cover;
+            border: 1px solid #ccc;
+            margin: 1.5mm;
+        }
+        .photos.single img { width: 150mm; height: 100mm; }
+    </style>
+</head>
+<body>
+    <div class="header-logo">
+        <img src="https://sldbtxhfmdhkllmfwusw.supabase.co/storage/v1/object/public/quotes/assets/logo.jpg" alt="פ.י. קו הנדסה בע״מ">
+    </div>
+
+    <div class="meta-data">
+        <div>
+            <span class="to-label">לכבוד:</span><br>
+            {{ data.client_name }}<br>
+            {{ data.settlement }}
+        </div>
+        <div>
+            תאריך: {{ data.date }}<br>
+            מ.פ: {{ data.project_number }}
+        </div>
+    </div>
+
+    <div class="subject">הנדון: {{ subject }}.</div>
+
+    <div class="report-body">{{ data.body }}</div>
+
+    <div class="signoff">
+        <div class="greeting">בברכה</div>
+        <img class="signature-img" src="https://sldbtxhfmdhkllmfwusw.supabase.co/storage/v1/object/public/quotes/assets/signature.jpg" alt="חתימה וחותמת">
+    </div>
+
+    {% if data.photo_urls %}
+    <div class="photos{% if data.photo_urls|length == 1 %} single{% endif %}">
+        <div class="photos-title">תמונות מהאתר:</div>
+        {% for url in data.photo_urls %}<img src="{{ url }}" alt="תמונה מהאתר">{% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="page-footer">
+        <img src="https://sldbtxhfmdhkllmfwusw.supabase.co/storage/v1/object/public/quotes/assets/footer.png" alt="פרטי קשר - פ.י.קו הנדסה בע״מ">
+    </div>
+</body>
+</html>
+"""
+
+@app.post("/generate-management-report")
+async def generate_management_report(report: ManagementReportData):
+    try:
+        # הנקודה בסוף הנדון מתווספת בתבנית — מורידים אותה מהקלט כדי שלא תצא כפולה
+        subject = report.subject.strip().rstrip('.').strip() or 'דו"ח ביקור באתר'
+        # autoescape: גוף הדוח הוא טקסט חופשי — תו כמו < לא אמור לשבור את ה-HTML
+        template = Template(MANAGEMENT_REPORT_TEMPLATE, autoescape=True)
+        rendered_html = template.render(data=report, subject=subject)
+        pdf_bytes = HTML(string=rendered_html).write_pdf()
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": 'inline; filename="management-report.pdf"'},
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/generate-supervision-quote")
 async def generate_supervision_quote(quote: SupervisionQuoteData):
