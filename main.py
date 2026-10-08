@@ -1,3 +1,5 @@
+import math
+
 from fastapi import FastAPI, HTTPException, Response
 from pydantic import BaseModel, Field
 from weasyprint import HTML
@@ -645,7 +647,9 @@ SUPERVISION_QUOTE_TEMPLATE = """
 # ============================================================
 # דוח ניהול/פיקוח — ביקור, ישיבה או סיור באתר. גוף הדוח טקסט חופשי,
 # אבל הכותרת קבועה ותמיד מלאה: לקוח, יישוב, תאריך, מ.פ.
-# בניגוד לאישור יציקה: בלי נוסח קבוע ובלי נעילה לעמוד אחד — דוח ישיבה יכול להיות ארוך.
+# הסדר: טקסט, תמונות, חתימה. הדוח נכנס לעמוד אחד — התמונות מקבלות את הגודל הכי גדול
+# שנכנס במקום שנשאר בעמוד, ואם גם תמונות קטנות לא נכנסות, הגופן קטן.
+# טקסט לעולם לא נחתך: דוח שלא נכנס גם בגופן הקטן ביותר ממשיך לעמוד שני.
 # ============================================================
 class ManagementReportData(BaseModel):
     date: str = Field(min_length=1)            # 05/10/2026
@@ -656,6 +660,21 @@ class ManagementReportData(BaseModel):
     body: str = Field(min_length=1)            # הטקסט החופשי — שבירות השורות נשמרות כמו שהן
     photo_urls: list[str] = []
 
+# מידות במ"מ. התבנית והחישוב שמתחתיה משתמשים באותם מספרים.
+MR_PAGE = {"top": 15, "side": 18, "bottom": 50}
+MR_CONTENT_W = 210 - 2 * MR_PAGE["side"]
+MR_CONTENT_BOTTOM = 297 - MR_PAGE["bottom"]   # סוף אזור התוכן, מראש הדף
+MR_MM_PER_PX = 25.4 / 96
+# גודל גופן בנק' וגובה שורה — מהרגיל עד הקטן ביותר שעוד נוח לקרוא
+MR_FONTS = [(12, 1.5), (11, 1.45), (10.5, 1.4), (10, 1.35), (9.5, 1.3)]
+MR_PHOTO_GAP = 3
+MR_PHOTO_BORDER = 0.6                # המסגרת של תמונה, משני הצדדים יחד
+MR_PHOTOS_TOP = 5                    # הרווח בין הטקסט לבלוק התמונות
+MR_PHOTO_MAX_W = {1: 150, 2: 84}     # רוחב מרבי לתמונה לפי מספר התמונות בשורה
+MR_PHOTO_MIN_W = 36                  # מתחת לזה התמונה כבר לא מראה כלום
+MR_PHOTO_RATIO = 0.68                # גובה חלקי רוחב. עד 0.75 כשיש מקום — היחס של צילום מהטלפון
+MR_MAX_RENDERS = 12
+
 MANAGEMENT_REPORT_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
@@ -664,7 +683,7 @@ MANAGEMENT_REPORT_TEMPLATE = """
     <style>
         @page {
             size: A4;
-            margin: 15mm 18mm 50mm 18mm;
+            margin: {{ page.top }}mm {{ page.side }}mm {{ page.bottom }}mm {{ page.side }}mm;
             @bottom-center { content: element(pageFooter); }
         }
         .page-footer { position: running(pageFooter); text-align: center; }
@@ -673,8 +692,8 @@ MANAGEMENT_REPORT_TEMPLATE = """
             font-family: 'Arial', sans-serif;
             direction: rtl;
             color: #000;
-            line-height: 1.5;
-            font-size: 12pt;
+            line-height: {{ line_height }};
+            font-size: {{ font_pt }}pt;
         }
         .header-logo { text-align: center; margin-bottom: 14px; }
         .header-logo img { width: 330px; max-width: 100%; }
@@ -688,23 +707,35 @@ MANAGEMENT_REPORT_TEMPLATE = """
             margin: 16px 0 18px 0;
         }
         .report-body { white-space: pre-line; }
+        .photos { margin-top: {{ photos_top }}mm; }
+        .photos .photos-title { font-weight: bold; margin-bottom: 1mm; }
+        {% if photo %}
+        .photo-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: {{ photo.gap }}mm;
+            justify-content: center;
+            width: {{ photo.grid_w }}mm;
+            margin: 0 auto;
+        }
+        .photo-grid img {
+            width: {{ photo.w }}mm;
+            height: {{ photo.h }}mm;
+            object-fit: cover;
+            border: 1px solid #ccc;
+        }
+        {% endif %}
         .signoff { margin-top: 30px; text-align: left; page-break-inside: avoid; }
         .signoff .greeting { font-size: 13pt; }
         .signature-img { height: 60px; margin-top: 2px; }
-        .photos { margin-top: 18px; text-align: center; }
-        .photos .photos-title { font-weight: bold; text-align: right; margin-bottom: 4px; }
-        .photos img {
-            display: inline-block;
-            width: 76mm;
-            height: 52mm;
-            object-fit: cover;
-            border: 1px solid #ccc;
-            margin: 1.5mm;
-        }
-        .photos.single img { width: 150mm; height: 100mm; }
     </style>
 </head>
 <body>
+    {# בראש המסמך, כדי שגם דוח שגולש לעמוד שני יקבל כותרת תחתונה בשני העמודים #}
+    <div class="page-footer">
+        <img src="https://sldbtxhfmdhkllmfwusw.supabase.co/storage/v1/object/public/quotes/assets/footer.png" alt="פרטי קשר - פ.י.קו הנדסה בע״מ">
+    </div>
+
     <div class="header-logo">
         <img src="https://sldbtxhfmdhkllmfwusw.supabase.co/storage/v1/object/public/quotes/assets/logo.jpg" alt="פ.י. קו הנדסה בע״מ">
     </div>
@@ -725,38 +756,103 @@ MANAGEMENT_REPORT_TEMPLATE = """
 
     <div class="report-body">{{ data.body }}</div>
 
+    {% if photo %}
+    <div class="photos">
+        <div class="photos-title">תמונות מהאתר:</div>
+        <div class="photo-grid">
+            {% for url in data.photo_urls %}<img src="{{ url }}" alt="תמונה מהאתר">{% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
     <div class="signoff">
         <div class="greeting">בברכה</div>
         <img class="signature-img" src="https://sldbtxhfmdhkllmfwusw.supabase.co/storage/v1/object/public/quotes/assets/signature.jpg" alt="חתימה וחותמת">
     </div>
-
-    {% if data.photo_urls %}
-    <div class="photos{% if data.photo_urls|length == 1 %} single{% endif %}">
-        <div class="photos-title">תמונות מהאתר:</div>
-        {% for url in data.photo_urls %}<img src="{{ url }}" alt="תמונה מהאתר">{% endfor %}
-    </div>
-    {% endif %}
-
-    <div class="page-footer">
-        <img src="https://sldbtxhfmdhkllmfwusw.supabase.co/storage/v1/object/public/quotes/assets/footer.png" alt="פרטי קשר - פ.י.קו הנדסה בע״מ">
-    </div>
+    {# סימון סוף התוכן — לפי המיקום שלו נמדד כמה גובה נשאר בעמוד #}
+    <div id="content-end"></div>
 </body>
 </html>
 """
+
+def mr_photo_layout(n: int, avail_mm: float) -> dict:
+    """הפריסה שנותנת את התמונות הגדולות ביותר ל-n תמונות בגובה נתון, במ"מ."""
+    best = None
+    # שתי תמונות ומעלה — לפחות שתיים בשורה, לא טור של תמונות
+    for cols in range(min(n, 2), min(n, 4) + 1):
+        rows = -(-n // cols)
+        row_h = (avail_mm - MR_PHOTO_GAP * (rows - 1)) / rows - MR_PHOTO_BORDER
+        # מ"מ אחד נשאר פנוי ברוחב, כדי שעיגול לא ישבור את השורה
+        fit_w = (MR_CONTENT_W - MR_PHOTO_GAP * (cols - 1) - 1) / cols - MR_PHOTO_BORDER
+        w = min(MR_PHOTO_MAX_W.get(cols, fit_w), fit_w, row_h / MR_PHOTO_RATIO)
+        # בשוויון — פחות תמונות בשורה
+        if best is None or w > best["w"] + 0.5:
+            best = {"cols": cols, "w": w, "row_h": row_h}
+    w = math.floor(best["w"] * 10) / 10
+    h = math.floor(min(w * 0.75, best["row_h"]) * 10) / 10
+    return {
+        "w": w,
+        "h": h,
+        "gap": MR_PHOTO_GAP,
+        "grid_w": round(best["cols"] * (w + MR_PHOTO_BORDER) + MR_PHOTO_GAP * (best["cols"] - 1) + 0.5, 1),
+    }
+
+def render_management_report(report: ManagementReportData, subject: str):
+    """מחזיר את המסמך המוכן ואת מספר הפריסות שנדרשו. עמוד אחד; רק אם זה בלתי אפשרי — יותר."""
+    # autoescape: גוף הדוח הוא טקסט חופשי — תו כמו < לא אמור לשבור את ה-HTML
+    template = Template(MANAGEMENT_REPORT_TEMPLATE, autoescape=True)
+    n = len(report.photo_urls)
+    renders = 0
+
+    def render(font, photo=None):
+        nonlocal renders
+        renders += 1
+        html = template.render(
+            data=report, subject=subject, page=MR_PAGE, photos_top=MR_PHOTOS_TOP,
+            font_pt=font[0], line_height=font[1], photo=photo,
+        )
+        return HTML(string=html).render()
+
+    for font in MR_FONTS:
+        if renders >= MR_MAX_RENDERS:
+            break
+        # קודם בלי התמונות: איפה נגמרים הטקסט והחתימה, כלומר כמה גובה נשאר לתמונות
+        doc = render(font)
+        if len(doc.pages) > 1:
+            continue
+        if n == 0:
+            return doc, renders
+        end = (getattr(doc.pages[0], "anchors", None) or {}).get("content-end")
+        title_h = font[0] * font[1] * 25.4 / 72 + 1
+        # בלי מדידה מתחילים מהגודל המרבי ויורדים עד שנכנס
+        free = MR_CONTENT_BOTTOM - end[1] * MR_MM_PER_PX if end else 170
+        avail = free - MR_PHOTOS_TOP - title_h - 2
+        while renders < MR_MAX_RENDERS:
+            photo = mr_photo_layout(n, avail)
+            if photo["w"] < MR_PHOTO_MIN_W:
+                break
+            doc = render(font, photo)
+            if len(doc.pages) == 1:
+                return doc, renders
+            avail *= 0.88
+
+    # לא נכנס לעמוד אחד גם בגופן הקטן ביותר: גופן רגיל ותמונות בגודל מלא, והדוח ממשיך לעמוד שני
+    return render(MR_FONTS[0], mr_photo_layout(n, 10_000) if n else None), renders
 
 @app.post("/generate-management-report")
 async def generate_management_report(report: ManagementReportData):
     try:
         # הנקודה בסוף הנדון מתווספת בתבנית — מורידים אותה מהקלט כדי שלא תצא כפולה
         subject = report.subject.strip().rstrip('.').strip() or 'דו"ח ביקור באתר'
-        # autoescape: גוף הדוח הוא טקסט חופשי — תו כמו < לא אמור לשבור את ה-HTML
-        template = Template(MANAGEMENT_REPORT_TEMPLATE, autoescape=True)
-        rendered_html = template.render(data=report, subject=subject)
-        pdf_bytes = HTML(string=rendered_html).write_pdf()
+        doc, renders = render_management_report(report, subject)
         return Response(
-            content=pdf_bytes,
+            content=doc.write_pdf(),
             media_type="application/pdf",
-            headers={"Content-Disposition": 'inline; filename="management-report.pdf"'},
+            headers={
+                "Content-Disposition": 'inline; filename="management-report.pdf"',
+                "X-Page-Count": str(len(doc.pages)),
+                "X-Renders": str(renders),
+            },
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
