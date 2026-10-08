@@ -673,6 +673,7 @@ MR_PHOTOS_TOP = 5                    # הרווח בין הטקסט לבלוק �
 MR_PHOTO_MAX_W = {1: 150, 2: 84}     # רוחב מרבי לתמונה לפי מספר התמונות בשורה
 MR_PHOTO_MIN_W = 36                  # מתחת לזה התמונה כבר לא מראה כלום
 MR_PHOTO_RATIO = 0.68                # גובה חלקי רוחב. עד 0.75 כשיש מקום — היחס של צילום מהטלפון
+MR_SIGNOFF_H = 34                    # "בברכה" והחתימה, כולל הרווח שמעליהן
 MR_MAX_RENDERS = 12
 
 MANAGEMENT_REPORT_TEMPLATE = """
@@ -707,18 +708,14 @@ MANAGEMENT_REPORT_TEMPLATE = """
             margin: 16px 0 18px 0;
         }
         .report-body { white-space: pre-line; }
-        .photos { margin-top: {{ photos_top }}mm; }
+        .photos { margin-top: {{ photos_top }}mm; page-break-inside: avoid; }
         .photos .photos-title { font-weight: bold; margin-bottom: 1mm; }
         {% if photo %}
-        .photo-grid {
-            display: flex;
-            flex-wrap: wrap;
-            gap: {{ photo.gap }}mm;
-            justify-content: center;
-            width: {{ photo.grid_w }}mm;
-            margin: 0 auto;
-        }
-        .photo-grid img {
+        /* כל שורת תמונות היא שורה משלה — לא סומכים על גלישת שורות של flex */
+        .photo-row { display: flex; justify-content: center; gap: {{ photo.gap }}mm; }
+        .photo-row + .photo-row { margin-top: {{ photo.gap }}mm; }
+        .photo-row img {
+            flex-shrink: 0;
             width: {{ photo.w }}mm;
             height: {{ photo.h }}mm;
             object-fit: cover;
@@ -759,9 +756,9 @@ MANAGEMENT_REPORT_TEMPLATE = """
     {% if photo %}
     <div class="photos">
         <div class="photos-title">תמונות מהאתר:</div>
-        <div class="photo-grid">
-            {% for url in data.photo_urls %}<img src="{{ url }}" alt="תמונה מהאתר">{% endfor %}
-        </div>
+        {% for row in data.photo_urls|batch(photo.cols) %}
+        <div class="photo-row">{% for url in row %}<img src="{{ url }}" alt="תמונה מהאתר">{% endfor %}</div>
+        {% endfor %}
     </div>
     {% endif %}
 
@@ -790,12 +787,7 @@ def mr_photo_layout(n: int, avail_mm: float) -> dict:
             best = {"cols": cols, "w": w, "row_h": row_h}
     w = math.floor(best["w"] * 10) / 10
     h = math.floor(min(w * 0.75, best["row_h"]) * 10) / 10
-    return {
-        "w": w,
-        "h": h,
-        "gap": MR_PHOTO_GAP,
-        "grid_w": round(best["cols"] * (w + MR_PHOTO_BORDER) + MR_PHOTO_GAP * (best["cols"] - 1) + 0.5, 1),
-    }
+    return {"cols": best["cols"], "w": w, "h": h, "gap": MR_PHOTO_GAP}
 
 def render_management_report(report: ManagementReportData, subject: str):
     """מחזיר את המסמך המוכן ואת מספר הפריסות שנדרשו. עמוד אחד; רק אם זה בלתי אפשרי — יותר."""
@@ -813,31 +805,47 @@ def render_management_report(report: ManagementReportData, subject: str):
         )
         return HTML(string=html).render()
 
-    for font in MR_FONTS:
-        if renders >= MR_MAX_RENDERS:
-            break
+    def title_h(font):
+        return font[0] * font[1] * 25.4 / 72 + 1
+
+    def fit(font):
+        """מכניס את התמונות בלי להוסיף עמוד. מחזיר את המסמך (None אם לא נכנסו) ואת מספר העמודים של הטקסט לבדו."""
         # קודם בלי התמונות: איפה נגמרים הטקסט והחתימה, כלומר כמה גובה נשאר לתמונות
         doc = render(font)
-        if len(doc.pages) > 1:
-            continue
+        pages = len(doc.pages)
         if n == 0:
-            return doc, renders
-        end = (getattr(doc.pages[0], "anchors", None) or {}).get("content-end")
-        title_h = font[0] * font[1] * 25.4 / 72 + 1
+            return doc, pages
+        end = (getattr(doc.pages[-1], "anchors", None) or {}).get("content-end")
         # בלי מדידה מתחילים מהגודל המרבי ויורדים עד שנכנס
         free = MR_CONTENT_BOTTOM - end[1] * MR_MM_PER_PX if end else 170
-        avail = free - MR_PHOTOS_TOP - title_h - 2
+        avail = free - MR_PHOTOS_TOP - title_h(font) - 2
         while renders < MR_MAX_RENDERS:
             photo = mr_photo_layout(n, avail)
             if photo["w"] < MR_PHOTO_MIN_W:
                 break
             doc = render(font, photo)
-            if len(doc.pages) == 1:
-                return doc, renders
+            if len(doc.pages) == pages:
+                return doc, pages
             avail *= 0.88
+        return None, pages
 
-    # לא נכנס לעמוד אחד גם בגופן הקטן ביותר: גופן רגיל ותמונות בגודל מלא, והדוח ממשיך לעמוד שני
-    return render(MR_FONTS[0], mr_photo_layout(n, 10_000) if n else None), renders
+    regular = None   # התוצאה בגופן הרגיל — למקרה שעמוד אחד לא יצא באף גופן
+    for font in MR_FONTS:
+        if renders >= MR_MAX_RENDERS:
+            break
+        doc, pages = fit(font)
+        if doc and pages == 1:
+            return doc, renders
+        if font == MR_FONTS[0]:
+            regular = doc
+
+    # לא נכנס לעמוד אחד גם בגופן הקטן ביותר — גופן רגיל, כמה שפחות עמודים.
+    # התמונות לא נכנסו אחרי הטקסט: הן והחתימה עוברות יחד לעמוד משלהן.
+    if regular is None:
+        font = MR_FONTS[0]
+        own_page = MR_CONTENT_BOTTOM - MR_PAGE["top"] - MR_SIGNOFF_H - MR_PHOTOS_TOP - title_h(font) - 2
+        regular = render(font, mr_photo_layout(n, own_page))
+    return regular, renders
 
 @app.post("/generate-management-report")
 async def generate_management_report(report: ManagementReportData):
