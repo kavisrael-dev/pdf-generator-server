@@ -1,4 +1,5 @@
 import math
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Response
 from pydantic import BaseModel, Field
@@ -442,13 +443,23 @@ class SupervisionQuoteData(BaseModel):
     project_description: str           # "ניהול ופיקוח בניה תוספת בניה לבית מגורים קיים"
     pre_construction_items: list[str]  # ניהול מקדים — תיאום מכרזים, בדיקת כתבי כמויות...
     supervision_items: list[str]       # פיקוח שוטף — ליווי שטח, מעקב קבלנים...
-    monthly_fee: int                   # 6400
+    monthly_fee: int                   # 6400 — סכום שכר הטרחה: לחודש, או כולל כש-fee_type הוא fixed
     payment_terms_items: list[str] = [
         "תשלום ראשון כמקדמה במעמד מועד החתימה.",
         "תשלום שני בתחילת העבודות באתר.",
         "שאר התשלומים בראשון לכל חודש עד סוף ההסכם.",
         "יש לבצע את התשלום בהעברה בנקאית ולהעביר אישור העברה.",
     ]
+    # התאמת ההסכם להיקף העבודה. שדה ריק — הנוסח הרגיל של הסכם על כל הפרויקט
+    title: str = ""                    # כותרת ההסכם
+    scope_label: str = ""              # תווית מתחת לכותרת — "שלב השלד בלבד"
+    scope_text: str = ""               # מה נמסר למפקח, בהמשך ל"הואיל והמזמין מעוניין למסור למפקח את"
+    general_note: str = ""             # המשפט על התוכניות והמסמכים
+    scope_note: str = ""               # משפט מודגש על גבולות ההסכם — מה הוא לא כולל
+    pre_construction_title: str = ""   # כותרת הרשימה הראשונה
+    supervision_title: str = ""        # כותרת הרשימה השנייה
+    fee_type: str = "monthly"          # monthly — שכר טרחה חודשי, fixed — סכום כולל
+    fee_note: str = ""                 # השורה שמתחת לסכום
 
 SUPERVISION_QUOTE_TEMPLATE = """
 <!DOCTYPE html>
@@ -643,6 +654,301 @@ SUPERVISION_QUOTE_TEMPLATE = """
 </body>
 </html>
 """
+
+# ============================================================
+# הסכם להזמנת שירותי ניהול ופיקוח — חוזה בעמוד אחד: הצדדים, תיאור הפרויקט,
+# שתי רשימות סעיפים, שכר טרחה וחתימות. הנוסח מתאים את עצמו להיקף העבודה:
+# כל הפרויקט, שלב השלד בלבד, או היקף אחר שמגיע בשדות.
+# ההסכם נכנס לעמוד אחד — אם צריך, הגופן קטן — והחתימות יורדות לתחתית העמוד.
+# טקסט לעולם לא נחתך: הסכם שלא נכנס גם בגופן הקטן ביותר ממשיך לעמוד שני.
+# פריסה בטבלאות ולא ב-flex, כדי שהעמודות והגבהים יצאו אותו דבר בכל גרסה של WeasyPrint.
+# ============================================================
+SC_FONTS_URI = (Path(__file__).parent / "fonts").as_uri()
+SC_PAGE = {"top": 8, "side": 17, "bottom": 46}
+SC_CONTENT_BOTTOM = 297 - SC_PAGE["bottom"]   # סוף אזור התוכן, מראש הדף
+SC_MM_PER_PX = 25.4 / 96
+# גודל גופן בנק' וגובה שורה — מהרגיל עד הקטן ביותר שעוד נוח לקרוא
+SC_FONTS = [(9.8, 1.36), (9.4, 1.33), (9.0, 1.3), (8.6, 1.28)]
+SC_SIGNS_TOP = 5                              # הרווח המזערי מעל "ולראיה באו הצדדים על החתום"
+SC_LETTERS = ["א", "ב", "ג", "ד", "ה", "ו", "ז", "ח", "ט", "י", "יא", "יב", "יג", "יד", "טו", "טז", "יז", "יח", "יט", "כ"]
+SC_TITLE = "הסכם להזמנת שירותי ניהול ופיקוח"
+SC_SCOPE_TEXT = "עבודות הניהול והפיקוח על הפרויקט, משלב הביצוע ועד גמר הפרויקט"
+SC_GENERAL_NOTE = (
+    "הניהול והפיקוח יבוצעו על פי תוכניות האדריכלות וההנדסה שהועברו למפקח במייל. "
+    "כל המסמכים הרלוונטיים לביצוע הפרויקט יימסרו למפקח לשם ביצוע עבודתו."
+)
+SC_FEE = {
+    "monthly": {"label": "שכר טרחה חודשי", "note": 'לחודש, לפני מע"מ'},
+    "fixed": {"label": "שכר טרחה", "note": 'סכום כולל, לפני מע"מ'},
+}
+
+SUPERVISION_CONTRACT_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @font-face { font-family: 'Heebo'; font-weight: 400; src: url('{{ fonts }}/Heebo-Regular.ttf'); }
+        @font-face { font-family: 'Heebo'; font-weight: 500; src: url('{{ fonts }}/Heebo-Medium.ttf'); }
+        @font-face { font-family: 'Heebo'; font-weight: 700; src: url('{{ fonts }}/Heebo-Bold.ttf'); }
+        @font-face { font-family: 'Heebo'; font-weight: 800; src: url('{{ fonts }}/Heebo-ExtraBold.ttf'); }
+        @page {
+            size: A4;
+            margin: {{ page.top }}mm {{ page.side }}mm {{ page.bottom }}mm {{ page.side }}mm;
+            @bottom-center { content: element(pageFooter); }
+        }
+        .page-footer { position: running(pageFooter); text-align: center; }
+        .page-footer img { width: 165mm; }
+        /* כל הגדלים והרווחים האנכיים ב-em — כשהגופן קטן, הכל מתכווץ יחד */
+        body {
+            font-family: 'Heebo', 'Arial', sans-serif;
+            direction: rtl;
+            color: #1f2733;
+            font-size: {{ font_pt }}pt;
+            line-height: {{ line_height }};
+            margin: 0;
+        }
+        table { width: 100%; border-collapse: separate; border-spacing: 0; }
+        td { padding: 0; vertical-align: top; }
+
+        .logo { text-align: center; }
+        .logo img { width: 76mm; }
+        .meta {
+            margin-top: 0.43em;
+            border-top: 0.5pt solid #c9d2e3;
+            border-bottom: 0.5pt solid #c9d2e3;
+            font-size: 0.97em;
+        }
+        .meta td { padding: 0.38em 0; }
+        .meta .date { text-align: left; }
+        .meta .k { color: #6a7486; }
+        .meta .v { font-weight: 700; color: #22408c; }
+
+        .title { text-align: center; margin-top: 1.3em; line-height: 1.2; }
+        .title h1 { margin: 0; font-size: 1.84em; font-weight: 800; color: #22408c; }
+        .title .bar { display: inline-block; width: 22mm; height: 1.1mm; background: #22408c; margin-top: 0.4em; }
+        .title .scope {
+            display: inline-block;
+            margin-top: 0.35em;
+            padding: 0.12em 5mm;
+            border: 0.8pt solid #22408c;
+            color: #22408c;
+            font-weight: 700;
+            font-size: 1.12em;
+        }
+        .lead { text-align: center; margin-top: 0.43em; font-size: 1.05em; }
+        .lead .blank { display: inline-block; width: 34mm; border-bottom: 0.6pt solid #1f2733; margin: 0 1.5mm; }
+
+        .parties { margin-top: 0.81em; table-layout: fixed; }
+        .gap { width: 6mm; }
+        .party {
+            border: 0.6pt solid #c9d2e3;
+            border-right: 2.4pt solid #22408c;
+            background: #f6f8fc;
+            padding: 0.52em 4mm 0.58em 4mm;
+        }
+        .party .tag { font-size: 0.87em; font-weight: 700; color: #22408c; }
+        .party .name { font-size: 1.22em; font-weight: 700; line-height: 1.25; }
+        .party .det { font-size: 0.94em; color: #4b5567; }
+
+        .recital { margin-top: 0.93em; }
+        b { font-weight: 700; }
+
+        .sec { margin-top: 0.98em; }
+        .sec-h { margin-bottom: 0.35em; }
+        .sec-h td { vertical-align: middle; white-space: nowrap; }
+        .sec-h .n { width: 1%; }
+        .sec-h .n span {
+            display: block;
+            font-size: 0.97em;
+            width: 1.6em;
+            height: 1.6em;
+            line-height: 1.6em;
+            text-align: center;
+            background: #22408c;
+            color: #fff;
+            font-weight: 700;
+        }
+        .sec-h .t { width: 1%; padding: 0 2.4mm; font-weight: 700; font-size: 1.17em; color: #22408c; }
+        .sec-h .rule div { border-top: 0.5pt solid #c9d2e3; }
+        .project { font-weight: 700; font-size: 1.1em; }
+
+        .cols { margin-top: 0.98em; table-layout: fixed; }
+        .cols .sec { margin-top: 0; }
+        .item { position: relative; padding-right: 6.5mm; margin-bottom: 0.16em; }
+        .item .i { position: absolute; right: 0; top: 0; font-weight: 700; color: #22408c; }
+
+        .by { margin-top: 0.7em; padding: 0.35em 4mm; background: #f6f8fc; border-right: 2.4pt solid #22408c; }
+
+        .fee { border: 0.8pt solid #22408c; }
+        .fee td { vertical-align: middle; }
+        .fee .amount { width: 52mm; background: #22408c; color: #fff; text-align: center; padding: 0.58em 3mm; }
+        .fee .amount .lbl, .fee .amount .note { font-size: 0.94em; }
+        .fee .amount .num { font-size: 1.84em; font-weight: 800; line-height: 1.12; }
+        .fee .terms { padding: 0.7em 4mm; }
+        .fee .terms .item:last-child { margin-bottom: 0; }
+
+        .signs { margin-top: {{ signs_top }}mm; page-break-inside: avoid; }
+        .signs .witness { text-align: center; font-weight: 700; color: #22408c; margin-bottom: 10mm; }
+        .sign-row { table-layout: fixed; }
+        .sign-row .gap { width: 22mm; }
+        .sign { text-align: center; }
+        .sign .line { border-top: 0.7pt solid #1f2733; padding-top: 1.2mm; font-weight: 700; }
+        .sign .cap { font-size: 0.9em; color: #6a7486; }
+    </style>
+</head>
+<body>
+    {# בראש המסמך, כדי שגם הסכם שגולש לעמוד שני יקבל כותרת תחתונה בשני העמודים #}
+    <div class="page-footer">
+        <img src="https://sldbtxhfmdhkllmfwusw.supabase.co/storage/v1/object/public/quotes/assets/footer.png" alt="פרטי קשר - פ.י.קו הנדסה בע״מ">
+    </div>
+
+    <div class="logo">
+        <img src="https://sldbtxhfmdhkllmfwusw.supabase.co/storage/v1/object/public/quotes/assets/logo.jpg" alt="פ.י. קו הנדסה בע״מ">
+    </div>
+
+    <table class="meta"><tr>
+        <td><span class="k">הסכם מס'</span> <span class="v" dir="ltr">{{ data.quote_number }}</span></td>
+        <td class="date"><span class="k">תאריך</span> <span class="v" dir="ltr">{{ data.date }}</span></td>
+    </tr></table>
+
+    <div class="title">
+        <h1>{{ title }}</h1>
+        {% if data.scope_label %}<span class="scope">{{ data.scope_label }}</span>{% else %}<span class="bar"></span>{% endif %}
+    </div>
+    <div class="lead">הסכם זה נערך ונחתם ביום<span class="blank">&nbsp;</span>בין הצדדים:</div>
+
+    <table class="parties"><tr>
+        <td class="party">
+            <div class="tag">להלן "המזמין"</div>
+            <div class="name">{{ data.client_name }}</div>
+            <div class="det">{{ data.client_address }}</div>
+            {% if data.client_id_number or data.client_phone %}
+            <div class="det">
+                {%- if data.client_id_number %}ת.ז <span dir="ltr">{{ data.client_id_number }}</span>{% endif %}
+                {%- if data.client_id_number and data.client_phone %}, {% endif %}
+                {%- if data.client_phone %}טלפון <span dir="ltr">{{ data.client_phone }}</span>{% endif -%}
+            </div>
+            {% endif %}
+            {% if data.client_email %}<div class="det"><span dir="ltr">{{ data.client_email }}</span></div>{% endif %}
+        </td>
+        <td class="gap"></td>
+        <td class="party">
+            <div class="tag">להלן "המפקח"</div>
+            <div class="name">פ.י. קו הנדסה בע"מ</div>
+            <div class="det">קיבוץ מעוז חיים</div>
+            <div class="det">לפי תקנות המהנדסים והאדריכלים תש"ח 1958</div>
+        </td>
+    </tr></table>
+
+    <div class="recital">
+        <b>הואיל</b> והמזמין מעוניין למסור למפקח את {{ scope_text }},<br>
+        <b>לפיכך הוסכם בין הצדדים כדלקמן:</b>
+    </div>
+
+    <div class="sec">
+        <table class="sec-h"><tr><td class="n"><span>1</span></td><td class="t">תיאור הפרויקט</td><td class="rule"><div></div></td></tr></table>
+        <div class="project">{{ project }}.</div>
+        <div>{{ general_note }}</div>
+        {% if data.scope_note %}<div><b>{{ data.scope_note }}</b></div>{% endif %}
+    </div>
+
+    {% macro items(list) %}
+        {% for item in list %}<div class="item"><span class="i">{{ letters[loop.index0] }}.</span>{{ item }}</div>{% endfor %}
+    {% endmacro %}
+    {% macro section(n, heading, list) %}
+        <div class="sec">
+            <table class="sec-h"><tr><td class="n"><span>{{ n }}</span></td><td class="t">{{ heading }}</td><td class="rule"><div></div></td></tr></table>
+            {{ items(list) }}
+        </div>
+    {% endmacro %}
+
+    {# שתי רשימות — זו לצד זו. רשימה אחת בלבד — לרוחב העמוד #}
+    {% if data.pre_construction_items and data.supervision_items %}
+    <table class="cols"><tr>
+        <td>{{ section(2, pre_title, data.pre_construction_items) }}</td>
+        <td class="gap"></td>
+        <td>{{ section(3, sup_title, data.supervision_items) }}</td>
+    </tr></table>
+    {% elif data.pre_construction_items %}
+    {{ section(2, pre_title, data.pre_construction_items) }}
+    {% else %}
+    {{ section(2, sup_title, data.supervision_items) }}
+    {% endif %}
+
+    <div class="by">השירותים המפורטים בהסכם זה יינתנו על ידי המהנדס <b>ישראל פרוכטמן</b>.</div>
+
+    <div class="sec">
+        <table class="sec-h"><tr><td class="n"><span>{{ fee_section }}</span></td><td class="t">שכר טרחה ותנאי תשלום</td><td class="rule"><div></div></td></tr></table>
+        <table class="fee"><tr>
+            <td class="amount">
+                <div class="lbl">{{ fee.label }}</div>
+                <div class="num">{{ "{:,.0f}".format(data.monthly_fee) }} ₪</div>
+                <div class="note">{{ fee.note }}</div>
+            </td>
+            <td class="terms">{{ items(data.payment_terms_items) }}</td>
+        </tr></table>
+    </div>
+
+    <div class="signs">
+        <div class="witness">ולראיה באו הצדדים על החתום</div>
+        <table class="sign-row"><tr>
+            <td class="sign">
+                <div class="line">המזמין</div>
+                <div class="cap">שם, חתימה ותאריך</div>
+            </td>
+            <td class="gap"></td>
+            <td class="sign">
+                <div class="line">המפקח</div>
+                <div class="cap">פ.י. קו הנדסה בע"מ - חתימה וחותמת</div>
+            </td>
+        </tr></table>
+    </div>
+    {# סימון סוף התוכן — לפי המיקום שלו נמדד כמה גובה נשאר בעמוד #}
+    <div id="content-end"></div>
+</body>
+</html>
+"""
+
+def render_supervision_contract(quote: SupervisionQuoteData):
+    """מחזיר את ההסכם המוכן. עמוד אחד, והחתימות בתחתיתו; רק אם זה בלתי אפשרי — יותר."""
+    # autoescape: הסעיפים והתיאורים הם טקסט חופשי — תו כמו < לא אמור לשבור את ה-HTML
+    template = Template(SUPERVISION_CONTRACT_TEMPLATE, autoescape=True)
+    fee = dict(SC_FEE.get(quote.fee_type, SC_FEE["monthly"]))
+    if quote.fee_note.strip():
+        fee["note"] = quote.fee_note.strip()
+    both_lists = bool(quote.pre_construction_items and quote.supervision_items)
+    context = dict(
+        data=quote, fonts=SC_FONTS_URI, page=SC_PAGE, letters=SC_LETTERS, fee=fee,
+        title=quote.title.strip() or SC_TITLE,
+        # הפסיק והנקודה שאחרי הטקסטים האלה מתווספים בתבנית — מורידים מהקלט כדי שלא יצאו כפולים
+        scope_text=quote.scope_text.strip().rstrip(',.').strip() or SC_SCOPE_TEXT,
+        project=quote.project_description.strip().rstrip('.').strip(),
+        general_note=quote.general_note.strip() or SC_GENERAL_NOTE,
+        pre_title=quote.pre_construction_title.strip() or "ניהול מקדים",
+        sup_title=quote.supervision_title.strip() or "פיקוח",
+        fee_section=4 if both_lists else 3,
+    )
+
+    def render(font, signs_top):
+        html = template.render(**context, font_pt=font[0], line_height=font[1], signs_top=round(signs_top, 1))
+        return HTML(string=html).render()
+
+    regular = None   # התוצאה בגופן הרגיל — למקרה שעמוד אחד לא יצא באף גופן
+    for font in SC_FONTS:
+        doc = render(font, SC_SIGNS_TOP)
+        if regular is None:
+            regular = doc
+        if len(doc.pages) > 1:
+            continue
+        # נכנס לעמוד אחד: כל הגובה שנשאר עובר אל מעל החתימות, כך שהן יורדות לתחתית העמוד
+        end = (getattr(doc.pages[0], "anchors", None) or {}).get("content-end")
+        free = SC_CONTENT_BOTTOM - end[1] * SC_MM_PER_PX if end else 0
+        if free < 2:
+            return doc
+        lowered = render(font, SC_SIGNS_TOP + free - 1)
+        return lowered if len(lowered.pages) == 1 else doc
+    return regular
 
 # ============================================================
 # דוח ניהול/פיקוח — ביקור, ישיבה או סיור באתר. גוף הדוח טקסט חופשי,
@@ -860,6 +1166,21 @@ async def generate_management_report(report: ManagementReportData):
                 "Content-Disposition": 'inline; filename="management-report.pdf"',
                 "X-Page-Count": str(len(doc.pages)),
                 "X-Renders": str(renders),
+            },
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/generate-supervision-contract")
+async def generate_supervision_contract(quote: SupervisionQuoteData):
+    try:
+        doc = render_supervision_contract(quote)
+        return Response(
+            content=doc.write_pdf(),
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": 'inline; filename="supervision-quote.pdf"',
+                "X-Page-Count": str(len(doc.pages)),
             },
         )
     except Exception as e:
