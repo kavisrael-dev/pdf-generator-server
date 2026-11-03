@@ -331,106 +331,8 @@ class SiteReportData(BaseModel):
     notes: str = "אין הערות מיוחדות. הכל תקין."
     photo_urls: list[str] = []     # תמונות מהשטח (קישורים ציבוריים)
 
+# אישור יציקה: עיצוב מקצועי (3/11/2026). אותו תוכן; Heebo, טבלת פרטים, גודל תמונות לפי כמות, חתימה חתוכה בלי שקיפות.
 SITE_REPORT_TEMPLATE = """
-<!DOCTYPE html>
-<html lang="he" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <style>
-        @page {
-            size: A4;
-            margin: 15mm 18mm 50mm 18mm;
-            @bottom-center { content: element(pageFooter); }
-        }
-        .page-footer { position: running(pageFooter); text-align: center; }
-        .page-footer img { width: 165mm; }
-        body {
-            font-family: 'Arial', sans-serif;
-            direction: rtl;
-            color: #000;
-            line-height: 1.3;
-            font-size: 11pt;
-            /* נעילת גובה התוכן לעמוד אחד + עוגן למיקום החתימה */
-            position: relative;
-            height: 230mm;
-            overflow: hidden;
-        }
-        .header-logo { text-align: center; margin-bottom: 8px; }
-        .header-logo img { width: 330px; max-width: 100%; }
-        .meta-data { display: flex; justify-content: space-between; margin-bottom: 8px; }
-        .subject {
-            font-weight: bold;
-            text-decoration: underline;
-            text-align: center;
-            font-size: 13pt;
-            margin: 8px 0 8px 0;
-        }
-        .notes-block { margin-top: 4px; white-space: pre-line; }
-        /* בברכה + שם + חתימה — תמיד בפינה השמאלית-תחתונה של הדף */
-        .signoff {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            text-align: left;
-        }
-        .signature-img { height: 52px; margin-top: 2px; }
-        .photos { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 3mm; justify-content: center; }
-        .photos img {
-            width: 76mm;
-            height: 48mm;
-            object-fit: cover;
-            border: 1px solid #ccc;
-        }
-        .photos.single img {
-            width: 150mm;
-            height: 94mm;
-        }
-    </style>
-</head>
-<body>
-    <div class="header-logo">
-        <img src="https://sldbtxhfmdhkllmfwusw.supabase.co/storage/v1/object/public/quotes/assets/logo.jpg" alt="פ.י. קו הנדסה בע״מ">
-    </div>
-
-    <div class="meta-data">
-        <div>
-            <strong>לכבוד:</strong> {{ data.client_name }}, {{ data.client_address }}
-        </div>
-        <div>
-            <strong>תאריך:</strong> {{ data.date }}<br>
-            <strong>פרוייקט:</strong> {{ data.project_number }}
-        </div>
-    </div>
-
-    <div class="subject">הנדון: אישור {{ data.casting_title }}.</div>
-
-    <div>{{ data.summary }}</div>
-    <div class="notes-block">{{ data.notes }}</div>
-    <div>תודה רבה.</div>
-
-    {% if data.photo_urls %}
-    <div class="photos{% if data.photo_urls|length == 1 %} single{% endif %}">
-        {% for url in data.photo_urls %}
-        <img src="{{ url }}" alt="תמונה מהאתר">
-        {% endfor %}
-    </div>
-    {% endif %}
-
-    <div class="signoff">
-        בברכה,<br>
-        פרוכטמן ישראל — פ.י.קו הנדסה בע"מ<br>
-        <img class="signature-img" src="https://sldbtxhfmdhkllmfwusw.supabase.co/storage/v1/object/public/quotes/assets/signature.jpg" alt="חתימה וחותמת">
-    </div>
-
-    <div class="page-footer">
-        <img src="https://sldbtxhfmdhkllmfwusw.supabase.co/storage/v1/object/public/quotes/assets/footer.png" alt="פרטי קשר - פ.י.קו הנדסה בע״מ">
-    </div>
-</body>
-</html>
-"""
-
-# עיצוב חדש לאישור יציקה (נקודת קצה לבדיקה, עד אישור). אותו תוכן בדיוק, עיצוב מקצועי יותר.
-SITE_REPORT_V2_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
@@ -556,6 +458,7 @@ SITE_REPORT_V2_TEMPLATE = """
 </body>
 </html>
 """
+
 
 # ============================================================
 # הסכם ניהול ופיקוח (שכר טרחה חודשי או סכום כולל, לא שלבי אחוזים) — המודל
@@ -1254,20 +1157,6 @@ async def generate_supervision_invoice(inv: SupervisionInvoiceData):
 async def generate_site_report(report: SiteReportData):
     try:
         template = Template(SITE_REPORT_TEMPLATE)
-        rendered_html = template.render(data=report)
-        pdf_bytes = HTML(string=rendered_html).write_pdf()
-        return Response(
-            content=pdf_bytes,
-            media_type="application/pdf",
-            headers={"Content-Disposition": 'inline; filename="site-report.pdf"'},
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/generate-site-report-v2")
-async def generate_site_report_v2(report: SiteReportData):
-    try:
-        template = Template(SITE_REPORT_V2_TEMPLATE)
         rendered_html = template.render(data=report, fonts=SC_FONTS_URI)
         pdf_bytes = HTML(string=rendered_html).write_pdf()
         return Response(
