@@ -3,3 +3,4 @@ uvicorn
 weasyprint
 jinja2
 pydantic
+pillow
