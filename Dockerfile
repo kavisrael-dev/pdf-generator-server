@@ -8,4 +8,5 @@ COPY fonts ./fonts
 COPY main.py .
 COPY site_photos.py .
 COPY financial_report.py .
+COPY extra_work_invoice.py .
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

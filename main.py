@@ -1252,6 +1252,26 @@ async def generate_invoice(inv: InvoiceData):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/generate-extra-work-invoice")
+async def generate_extra_work_invoice(payload: dict):
+    """חשבון תוספת ושינוי: עבודה נוספת מעבר להצעה. המודל והתבנית ב-extra_work_invoice.py."""
+    # נטען כאן בלבד, כדי שתקלה בקובץ הזה לא תפיל את שאר בורי
+    from extra_work_invoice import ExtraWorkInvoiceData, render_extra_work_invoice
+    from pydantic import ValidationError
+
+    try:
+        inv = ExtraWorkInvoiceData(**payload)
+    except ValidationError as e:
+        raise HTTPException(status_code=422, detail=str(e)[:500])
+    try:
+        return Response(
+            content=render_extra_work_invoice(inv),
+            media_type="application/pdf",
+            headers={"Content-Disposition": 'inline; filename="extra-work-invoice.pdf"'},
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/generate-quote")
 async def generate_quote(quote: EngineeringQuoteData):
     try:
