@@ -6,6 +6,8 @@ from pydantic import BaseModel, Field
 from weasyprint import HTML
 from jinja2 import Template
 
+from financial_report import FinancialReportData, render_financial_report
+
 app = FastAPI()
 
 # מודלים לקליטת הנתונים מהבוט (Supabase)
