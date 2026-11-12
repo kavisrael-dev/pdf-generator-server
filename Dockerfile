@@ -7,4 +7,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY fonts ./fonts
 COPY main.py .
 COPY site_photos.py .
+COPY financial_report.py .
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

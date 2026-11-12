@@ -863,6 +863,19 @@ def render_management_report(report: ManagementReportData, subject: str):
         regular = render(font, mr_photo_layout(n, own_page))
     return regular, renders
 
+@app.post("/generate-financial-report")
+async def generate_financial_report(report: FinancialReportData):
+    try:
+        doc = render_financial_report(report)
+        return Response(
+            content=doc.write_pdf(),
+            media_type="application/pdf",
+            headers={"Content-Disposition": 'inline; filename="financial-report.pdf"', "X-Page-Count": str(len(doc.pages))},
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.post("/generate-management-report")
 async def generate_management_report(report: ManagementReportData):
     try:
