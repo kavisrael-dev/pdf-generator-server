@@ -1,7 +1,9 @@
 """דוח כספי: נתונים מסודרים ← PDF בעיצוב המשרד. הנתונים והסכומים מחושבים בצד של פיקו; כאן רק תצוגה."""
+import re
 from pathlib import Path
 
-from jinja2 import Template
+from jinja2 import Environment
+from markupsafe import Markup, escape
 from pydantic import BaseModel
 from weasyprint import HTML
 
@@ -43,7 +45,7 @@ TEMPLATE = """
     @font-face { font-family: 'Heebo'; font-weight: 400; src: url('{{ fonts }}/Heebo-Regular.ttf'); }
     @font-face { font-family: 'Heebo'; font-weight: 500; src: url('{{ fonts }}/Heebo-Medium.ttf'); }
     @font-face { font-family: 'Heebo'; font-weight: 700; src: url('{{ fonts }}/Heebo-Bold.ttf'); }
-    @page { size: A4; margin: 14mm 16mm 16mm 16mm; @bottom-center { content: element(pageFooter); } }
+    @page { size: A4; margin: 14mm 16mm 46mm 16mm; @bottom-center { content: element(pageFooter); } }
     .page-footer { position: running(pageFooter); text-align: center; }
     .page-footer img { width: 150mm; }
     body { font-family: 'Heebo', 'Arial', sans-serif; direction: rtl; color: #1f2733; font-size: 10pt; line-height: 1.4; margin: 0; }
@@ -94,7 +96,7 @@ TEMPLATE = """
     {% if s.rows %}
     <table>
         {% if s.headers %}<thead><tr>{% for h in s.headers %}<th>{{ h }}</th>{% endfor %}</tr></thead>{% endif %}
-        <tbody>{% for r in s.rows %}<tr>{% for cell in r %}<td class="{{ 'num' if loop.last else '' }}">{{ cell }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+        <tbody>{% for r in s.rows %}<tr>{% for cell in r %}<td class="{{ 'num' if loop.last else '' }}">{{ cell | ltr_nums }}</td>{% endfor %}</tr>{% endfor %}</tbody>
     </table>
     {% else %}<div class="empty">{{ s.empty_text }}</div>{% endif %}
     {% if s.more %}<div class="more">{{ s.more }}</div>{% endif %}
@@ -112,7 +114,18 @@ TEMPLATE = """
 """
 
 
+# מספר עם מקף, כמו מספר הסכם פיקוח 6262-1, מתהפך בתוך שורה בעברית. עוטפים אותו ב-span ltr, כמו בשאר המסמכים
+_LTR_NUM = re.compile(r"\d+(?:[-/]\d+)+")
+
+
+def _ltr_nums(value) -> Markup:
+    # קודם מקודדים את הטקסט, ורק אחר כך עוטפים: שם לקוח הוא טקסט חופשי
+    return Markup(_LTR_NUM.sub(lambda m: f'<span dir="ltr">{m.group(0)}</span>', str(escape(value))))
+
+
 def render_financial_report(data: FinancialReportData):
     # autoescape: שמות לקוחות הם טקסט חופשי
-    html = Template(TEMPLATE, autoescape=True).render(data=data, fonts=FONTS_URI, assets=ASSETS)
+    env = Environment(autoescape=True)
+    env.filters["ltr_nums"] = _ltr_nums
+    html = env.from_string(TEMPLATE).render(data=data, fonts=FONTS_URI, assets=ASSETS)
     return HTML(string=html).render()
