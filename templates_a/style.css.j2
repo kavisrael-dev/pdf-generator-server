@@ -8,7 +8,8 @@
 @page {
     size: A4;
     margin: {{ page.top }}mm {{ page.side }}mm {{ page.bottom }}mm {{ page.side }}mm;
-    @bottom-center { content: element(pageFooter); vertical-align: bottom; }
+    /* רוחב קבוע: בלעדיו WeasyPrint ממרכז את התיבה לפי התוכן, והציור זז שמאלה מהמקום שלו בנייר המכתבים */
+    @bottom-center { content: element(pageFooter); vertical-align: bottom; width: {{ 210 - 2 * page.side }}mm; }
 }
 /* ציור הבית ופרטי ההתקשרות מנייר המכתבים המקורי, צמודים לפינה הימנית התחתונה. חוזרים בכל עמוד */
 .page-footer { position: running(pageFooter); direction: ltr; text-align: left; height: {{ footer.h }}mm; }
