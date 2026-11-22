@@ -1,4 +1,4 @@
-"""עיצוב A — השפה העיצובית החדשה של מסמכי המשרד, נאמנה לנייר המכתבים המקורי.
+"""עיצוב A — השפה העיצובית החדשה של מסמכי המשרד, נאמנה לנייר המכתבים המקורי. הגופן: Frank Ruhl Libre.
 
 כל המסמכים בנויים מתבנית בסיס אחת (templates_a/base.html.j2), והעיצוב מגיע ממשתנים אחידים
 (COLORS, TYPE, PAGE) שנכנסים ל-templates_a/style.css.j2. הנתונים מגיעים מבחוץ כמו שהם:
@@ -14,8 +14,7 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
 
 HERE = Path(__file__).parent
-FONTS_DIR = HERE / "fonts"
-NARKISIM_FILE = "Narkisim.ttf"     # לא בגיט: המאגר ציבורי והרישיון של הגופן לא מתיר. בלעדיו — Heebo
+FONTS_DIR = HERE / "fonts"         # Frank Ruhl Libre ו-Heebo, שניהם ברישיון OFL
 TEMPLATES_DIR = HERE / "templates_a"
 ASSETS_DIR = HERE / "assets"
 
@@ -36,19 +35,10 @@ COLORS = {
     "blue": "#2a4088",      # הכחול של הלוגו
 }
 
-# גופן: נרקיסים כשהקובץ קיים בשרת, ואחרת Heebo — בגודל שמתאים לכל אחד מהם
-TYPE_NARKISIM = {"family": "'Narkisim', 'Heebo', sans-serif", "body": 12, "lh": 1.4, "small": 11, "label": 10}
-TYPE_HEEBO = {"family": "'Heebo', sans-serif", "body": 10.5, "lh": 1.5, "small": 9.6, "label": 9}
+# גופן: Frank Ruhl Libre — בחירת זיו מ-22/11/2026, במקום נרקיסים שהרישיון שלו לא מתיר שימוש בשרת
+TYPE = {"family": "'Frank Ruhl Libre', 'Heebo', serif", "body": 11.5, "lh": 1.42, "small": 10.5, "label": 9.5}
 
 SIGNOFF = {"name": "פרוכטמן ישראל", "company": 'פ.י.קו הנדסה בע"מ'}
-
-
-def has_narkisim() -> bool:
-    return (FONTS_DIR / NARKISIM_FILE).exists()
-
-
-def type_tokens() -> dict:
-    return TYPE_NARKISIM if has_narkisim() else TYPE_HEEBO
 
 
 def money(value) -> str:
@@ -67,8 +57,8 @@ _env.filters["money"] = money
 
 def render_html(template: str, **context) -> str:
     base = dict(
-        fonts=FONTS_DIR.as_uri(), assets=ASSETS_DIR.as_uri(), narkisim=has_narkisim(),
-        page=PAGE, footer=FOOTER, c=COLORS, t=type_tokens(), signoff=SIGNOFF,
+        fonts=FONTS_DIR.as_uri(), assets=ASSETS_DIR.as_uri(),
+        page=PAGE, footer=FOOTER, c=COLORS, t=TYPE, signoff=SIGNOFF,
         font_pt=None, line_height=None,
     )
     base.update(context)
@@ -259,8 +249,7 @@ def _site_report_fitted(report):
 # בעמוד אחד; התמונות מקבלות את הגודל הכי גדול שנכנס, ואם צריך הגופן קטן.
 # טקסט לעולם לא נחתך: דוח שלא נכנס גם בגופן הקטן ביותר ממשיך לעמוד שני.
 # ============================================================
-MR_FONTS_NARKISIM = [(12, 1.4), (11.5, 1.38), (11, 1.35), (10.5, 1.32), (10, 1.3)]
-MR_FONTS_HEEBO = [(10.5, 1.5), (10, 1.45), (9.5, 1.4), (9, 1.35), (8.5, 1.3)]
+MR_FONTS = [(11.5, 1.42), (11, 1.4), (10.5, 1.36), (10, 1.33), (9.5, 1.3)]
 MR_PHOTO_GAP = 2.5
 MR_PHOTO_BORDER = 0.4
 MR_PHOTOS_TOP = 4
@@ -318,7 +307,7 @@ def management_report_html(report, subject, font, photo) -> str:
 
 def management_report_doc(report, subject):
     """מחזיר את המסמך המוכן ואת מספר הפריסות שנדרשו."""
-    fonts = MR_FONTS_NARKISIM if has_narkisim() else MR_FONTS_HEEBO
+    fonts = MR_FONTS
     n = len(report.photo_urls)
     renders = 0
 
@@ -369,8 +358,7 @@ def management_report_doc(report, subject):
 # הסכם ניהול ופיקוח — אותו נוסח בדיוק, בעיצוב A. עמוד אחד, והחתימות בתחתיתו;
 # אם צריך הגופן קטן, ורק אם זה בלתי אפשרי — עמוד שני.
 # ============================================================
-SC_FONTS_NARKISIM = [(11.5, 1.36), (11, 1.33), (10.5, 1.3), (10, 1.28)]
-SC_FONTS_HEEBO = [(9.8, 1.36), (9.4, 1.33), (9.0, 1.3), (8.6, 1.28)]
+SC_FONTS = [(11, 1.36), (10.5, 1.33), (10, 1.3), (9.5, 1.28)]
 SC_SIGNS_TOP = 6
 
 
@@ -386,7 +374,7 @@ def supervision_contract_html(context: dict, font, signs_top) -> str:
 def supervision_contract_doc(context: dict):
     """context — אותם ערכים שהתבנית הישנה מקבלת: data, title, scope_text, project, general_note,
     pre_title, sup_title, fee, fee_section, letters."""
-    fonts = SC_FONTS_NARKISIM if has_narkisim() else SC_FONTS_HEEBO
+    fonts = SC_FONTS
 
     def render(font, signs_top):
         return _html(supervision_contract_html(context, font, signs_top)).render()
