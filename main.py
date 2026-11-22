@@ -12,15 +12,31 @@ from financial_report import FinancialReportData, render_financial_report
 app = FastAPI()
 
 # ============================================================
-# עיצוב A — השפה העיצובית החדשה (style_a.py ו-templates_a/). כבוי כברירת מחדל:
-# המסמכים יוצאים בעיצוב הקיים, עד שמשנים את משתנה הסביבה DOC_STYLE ל-"a".
-# לבדיקה בלי לשנות את מה שיוצא ללקוחות: ?style=a בקריאה לנקודת הקצה.
+# עיצוב A — השפה העיצובית החדשה (style_a.py ו-templates_a/). פעיל כברירת מחדל מ-22/11/2026.
+# חזרה לעיצוב הקודם בלי שינוי קוד: משתנה הסביבה DOC_STYLE=legacy ב-Render,
+# או ?style=legacy בקריאה לנקודת הקצה.
+# רשת ביטחון: אם עיצוב A נכשל במסמך מסוים, המסמך מופק בעיצוב הקודם ולא נכשל.
+# כשמבקשים ?style=a במפורש — אין רשת, כדי שתקלה תיראה בבדיקה.
 # ============================================================
-DOC_STYLE = os.environ.get("DOC_STYLE", "legacy")
+DOC_STYLE = os.environ.get("DOC_STYLE", "a")
 
 
 def use_style_a(style: str | None) -> bool:
     return (style or DOC_STYLE).strip().lower() == "a"
+
+
+def style_a_or_none(style: str | None, name: str, build):
+    """מפיק בעיצוב A ומחזיר את התוצאה, או None כשצריך את העיצוב הקודם."""
+    if not use_style_a(style):
+        return None
+    import style_a
+    if style:
+        return build(style_a)
+    try:
+        return build(style_a)
+    except Exception as e:  # noqa: BLE001 — כל תקלה בעיצוב החדש חוזרת לעיצוב הקודם
+        print(f"[style-a] {name}: נכשל, מופק בעיצוב הקודם: {type(e).__name__}: {e}", flush=True)
+        return None
 
 
 def pdf_response(content: bytes, filename: str, headers: dict | None = None) -> Response:
@@ -903,11 +919,8 @@ async def generate_management_report(report: ManagementReportData, style: str | 
     try:
         # הנקודה בסוף הנדון מתווספת בתבנית — מורידים אותה מהקלט כדי שלא תצא כפולה
         subject = report.subject.strip().rstrip('.').strip() or 'דו"ח ביקור באתר'
-        if use_style_a(style):
-            import style_a
-            doc, renders = style_a.management_report_doc(report, subject)
-        else:
-            doc, renders = render_management_report(report, subject)
+        a = style_a_or_none(style, "management-report", lambda sa: sa.management_report_doc(report, subject))
+        doc, renders = a if a is not None else render_management_report(report, subject)
         return Response(
             content=doc.write_pdf(),
             media_type="application/pdf",
@@ -941,10 +954,8 @@ def supervision_contract_context_a(quote: SupervisionQuoteData) -> dict:
 @app.post("/generate-supervision-quote")
 async def generate_supervision_quote(quote: SupervisionQuoteData, style: str | None = None):
     try:
-        if use_style_a(style):
-            import style_a
-            doc = style_a.supervision_contract_doc(supervision_contract_context_a(quote))
-        else:
+        doc = style_a_or_none(style, "supervision-quote", lambda sa: sa.supervision_contract_doc(supervision_contract_context_a(quote)))
+        if doc is None:
             doc = render_supervision_contract(quote)
         return Response(
             content=doc.write_pdf(),
@@ -1076,9 +1087,9 @@ async def generate_supervision_invoice(inv: SupervisionInvoiceData, style: str |
     try:
         vat_amount = round(inv.monthly_fee * inv.vat_percent / 100)
         total_with_vat = inv.monthly_fee + vat_amount
-        if use_style_a(style):
-            import style_a
-            return pdf_response(style_a.supervision_invoice_pdf(inv, vat_amount, total_with_vat), "supervision-invoice.pdf")
+        a = style_a_or_none(style, "supervision-invoice", lambda sa: sa.supervision_invoice_pdf(inv, vat_amount, total_with_vat))
+        if a is not None:
+            return pdf_response(a, "supervision-invoice.pdf")
         template = Template(SUPERVISION_INVOICE_TEMPLATE)
         rendered_html = template.render(data=inv, vat_amount=vat_amount, total_with_vat=total_with_vat)
         pdf_bytes = HTML(string=rendered_html).write_pdf()
@@ -1273,11 +1284,8 @@ def render_site_report_pdf_fitted(report):
 @app.post("/generate-site-report")
 async def generate_site_report(report: SiteReportData, style: str | None = None):
     try:
-        if use_style_a(style):
-            import style_a
-            pdf_bytes, photos_used = style_a.site_report_pdf(report)
-        else:
-            pdf_bytes, photos_used = render_site_report_pdf(report)
+        a = style_a_or_none(style, "site-report", lambda sa: sa.site_report_pdf(report))
+        pdf_bytes, photos_used = a if a is not None else render_site_report_pdf(report)
         return Response(
             content=pdf_bytes,
             media_type="application/pdf",
@@ -1292,9 +1300,9 @@ async def generate_invoice(inv: InvoiceData, style: str | None = None):
         # חישוב מע"מ וסה"כ בקוד — אף פעם לא מוזן ידנית, כדי שלא יצא חשבון שגוי
         vat_amount = round(inv.payment_amount * inv.vat_percent / 100)
         total_with_vat = inv.payment_amount + vat_amount
-        if use_style_a(style):
-            import style_a
-            return pdf_response(style_a.invoice_pdf(inv, vat_amount, total_with_vat), "invoice.pdf")
+        a = style_a_or_none(style, "invoice", lambda sa: sa.invoice_pdf(inv, vat_amount, total_with_vat))
+        if a is not None:
+            return pdf_response(a, "invoice.pdf")
 
         template = Template(INVOICE_TEMPLATE)
         rendered_html = template.render(data=inv, vat_amount=vat_amount, total_with_vat=total_with_vat)
@@ -1320,14 +1328,13 @@ async def generate_extra_work_invoice(payload: dict, style: str | None = None):
     except ValidationError as e:
         raise HTTPException(status_code=422, detail=str(e)[:500])
     try:
-        if use_style_a(style):
-            import style_a
+        def build_extra(sa):
             vat_amount = vat_of(inv.payment_amount, inv.vat_percent)
             hours_text = fmt_hours(inv.hours) if inv.hours else ""
-            return pdf_response(
-                style_a.extra_work_invoice_pdf(inv, vat_amount, inv.payment_amount + vat_amount, hours_text),
-                "extra-work-invoice.pdf",
-            )
+            return sa.extra_work_invoice_pdf(inv, vat_amount, inv.payment_amount + vat_amount, hours_text)
+        a = style_a_or_none(style, "extra-work-invoice", build_extra)
+        if a is not None:
+            return pdf_response(a, "extra-work-invoice.pdf")
         return Response(
             content=render_extra_work_invoice(inv),
             media_type="application/pdf",
@@ -1339,9 +1346,9 @@ async def generate_extra_work_invoice(payload: dict, style: str | None = None):
 @app.post("/generate-quote")
 async def generate_quote(quote: EngineeringQuoteData, style: str | None = None):
     try:
-        if use_style_a(style):
-            import style_a
-            return pdf_response(style_a.quote_pdf(quote), "quote.pdf")
+        a = style_a_or_none(style, "quote", lambda sa: sa.quote_pdf(quote))
+        if a is not None:
+            return pdf_response(a, "quote.pdf")
         # הזנת הנתונים לתוך ה-HTML
         template = Template(HTML_TEMPLATE)
         rendered_html = template.render(data=quote)
