@@ -1,4 +1,5 @@
 import math
+import os
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Response
@@ -9,6 +10,25 @@ from jinja2 import Template
 from financial_report import FinancialReportData, render_financial_report
 
 app = FastAPI()
+
+# ============================================================
+# עיצוב A — השפה העיצובית החדשה (style_a.py ו-templates_a/). כבוי כברירת מחדל:
+# המסמכים יוצאים בעיצוב הקיים, עד שמשנים את משתנה הסביבה DOC_STYLE ל-"a".
+# לבדיקה בלי לשנות את מה שיוצא ללקוחות: ?style=a בקריאה לנקודת הקצה.
+# ============================================================
+DOC_STYLE = os.environ.get("DOC_STYLE", "legacy")
+
+
+def use_style_a(style: str | None) -> bool:
+    return (style or DOC_STYLE).strip().lower() == "a"
+
+
+def pdf_response(content: bytes, filename: str, headers: dict | None = None) -> Response:
+    return Response(
+        content=content,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{filename}"', **(headers or {})},
+    )
 
 # מודלים לקליטת הנתונים מהבוט (Supabase)
 class PaymentMilestone(BaseModel):
@@ -879,11 +899,15 @@ async def generate_financial_report(report: FinancialReportData):
 
 
 @app.post("/generate-management-report")
-async def generate_management_report(report: ManagementReportData):
+async def generate_management_report(report: ManagementReportData, style: str | None = None):
     try:
         # הנקודה בסוף הנדון מתווספת בתבנית — מורידים אותה מהקלט כדי שלא תצא כפולה
         subject = report.subject.strip().rstrip('.').strip() or 'דו"ח ביקור באתר'
-        doc, renders = render_management_report(report, subject)
+        if use_style_a(style):
+            import style_a
+            doc, renders = style_a.management_report_doc(report, subject)
+        else:
+            doc, renders = render_management_report(report, subject)
         return Response(
             content=doc.write_pdf(),
             media_type="application/pdf",
@@ -896,10 +920,32 @@ async def generate_management_report(report: ManagementReportData):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+def supervision_contract_context_a(quote: SupervisionQuoteData) -> dict:
+    """אותם ערכים שהתבנית הישנה מקבלת ב-render_supervision_contract, לעיצוב A."""
+    fee = dict(SC_FEE.get(quote.fee_type, SC_FEE["monthly"]))
+    if quote.fee_note.strip():
+        fee["note"] = quote.fee_note.strip()
+    both_lists = bool(quote.pre_construction_items and quote.supervision_items)
+    return dict(
+        data=quote, letters=SC_LETTERS, fee=fee,
+        title=quote.title.strip() or SC_TITLE,
+        scope_text=quote.scope_text.strip().rstrip(',.').strip() or SC_SCOPE_TEXT,
+        project=quote.project_description.strip().rstrip('.').strip(),
+        general_note=quote.general_note.strip() or SC_GENERAL_NOTE,
+        pre_title=quote.pre_construction_title.strip() or "ניהול מקדים",
+        sup_title=quote.supervision_title.strip() or "פיקוח",
+        fee_section=4 if both_lists else 3,
+    )
+
+
 @app.post("/generate-supervision-quote")
-async def generate_supervision_quote(quote: SupervisionQuoteData):
+async def generate_supervision_quote(quote: SupervisionQuoteData, style: str | None = None):
     try:
-        doc = render_supervision_contract(quote)
+        if use_style_a(style):
+            import style_a
+            doc = style_a.supervision_contract_doc(supervision_contract_context_a(quote))
+        else:
+            doc = render_supervision_contract(quote)
         return Response(
             content=doc.write_pdf(),
             media_type="application/pdf",
@@ -1026,10 +1072,13 @@ SUPERVISION_INVOICE_TEMPLATE = """
 """
 
 @app.post("/generate-supervision-invoice")
-async def generate_supervision_invoice(inv: SupervisionInvoiceData):
+async def generate_supervision_invoice(inv: SupervisionInvoiceData, style: str | None = None):
     try:
         vat_amount = round(inv.monthly_fee * inv.vat_percent / 100)
         total_with_vat = inv.monthly_fee + vat_amount
+        if use_style_a(style):
+            import style_a
+            return pdf_response(style_a.supervision_invoice_pdf(inv, vat_amount, total_with_vat), "supervision-invoice.pdf")
         template = Template(SUPERVISION_INVOICE_TEMPLATE)
         rendered_html = template.render(data=inv, vat_amount=vat_amount, total_with_vat=total_with_vat)
         pdf_bytes = HTML(string=rendered_html).write_pdf()
@@ -1222,9 +1271,13 @@ def render_site_report_pdf_fitted(report):
     return doc.write_pdf(), len(photos)
 
 @app.post("/generate-site-report")
-async def generate_site_report(report: SiteReportData):
+async def generate_site_report(report: SiteReportData, style: str | None = None):
     try:
-        pdf_bytes, photos_used = render_site_report_pdf(report)
+        if use_style_a(style):
+            import style_a
+            pdf_bytes, photos_used = style_a.site_report_pdf(report)
+        else:
+            pdf_bytes, photos_used = render_site_report_pdf(report)
         return Response(
             content=pdf_bytes,
             media_type="application/pdf",
@@ -1234,11 +1287,14 @@ async def generate_site_report(report: SiteReportData):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/generate-invoice")
-async def generate_invoice(inv: InvoiceData):
+async def generate_invoice(inv: InvoiceData, style: str | None = None):
     try:
         # חישוב מע"מ וסה"כ בקוד — אף פעם לא מוזן ידנית, כדי שלא יצא חשבון שגוי
         vat_amount = round(inv.payment_amount * inv.vat_percent / 100)
         total_with_vat = inv.payment_amount + vat_amount
+        if use_style_a(style):
+            import style_a
+            return pdf_response(style_a.invoice_pdf(inv, vat_amount, total_with_vat), "invoice.pdf")
 
         template = Template(INVOICE_TEMPLATE)
         rendered_html = template.render(data=inv, vat_amount=vat_amount, total_with_vat=total_with_vat)
@@ -1253,10 +1309,10 @@ async def generate_invoice(inv: InvoiceData):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/generate-extra-work-invoice")
-async def generate_extra_work_invoice(payload: dict):
+async def generate_extra_work_invoice(payload: dict, style: str | None = None):
     """חשבון תוספת ושינוי: עבודה נוספת מעבר להצעה. המודל והתבנית ב-extra_work_invoice.py."""
     # נטען כאן בלבד, כדי שתקלה בקובץ הזה לא תפיל את שאר בורי
-    from extra_work_invoice import ExtraWorkInvoiceData, render_extra_work_invoice
+    from extra_work_invoice import ExtraWorkInvoiceData, render_extra_work_invoice, vat_of, fmt_hours
     from pydantic import ValidationError
 
     try:
@@ -1264,6 +1320,14 @@ async def generate_extra_work_invoice(payload: dict):
     except ValidationError as e:
         raise HTTPException(status_code=422, detail=str(e)[:500])
     try:
+        if use_style_a(style):
+            import style_a
+            vat_amount = vat_of(inv.payment_amount, inv.vat_percent)
+            hours_text = fmt_hours(inv.hours) if inv.hours else ""
+            return pdf_response(
+                style_a.extra_work_invoice_pdf(inv, vat_amount, inv.payment_amount + vat_amount, hours_text),
+                "extra-work-invoice.pdf",
+            )
         return Response(
             content=render_extra_work_invoice(inv),
             media_type="application/pdf",
@@ -1273,8 +1337,11 @@ async def generate_extra_work_invoice(payload: dict):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/generate-quote")
-async def generate_quote(quote: EngineeringQuoteData):
+async def generate_quote(quote: EngineeringQuoteData, style: str | None = None):
     try:
+        if use_style_a(style):
+            import style_a
+            return pdf_response(style_a.quote_pdf(quote), "quote.pdf")
         # הזנת הנתונים לתוך ה-HTML
         template = Template(HTML_TEMPLATE)
         rendered_html = template.render(data=quote)

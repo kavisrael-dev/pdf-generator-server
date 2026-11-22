@@ -1,0 +1,41 @@
+{% extends "base.html.j2" %}
+{# אישור יציקה. גובה התוכן נעול לעמוד אחד, החתימה בפינה השמאלית התחתונה (signoff-box),
+   והתמונות מקבלות את הגובה שבין סוף הטקסט (content-end) לחתימה. המידות מחושבות ב-style_a.py. #}
+
+{% block style %}
+body { position: relative; height: {{ content_h - 1 }}mm; overflow: hidden; }
+.report { margin-top: 4mm; }
+.report .notes { white-space: pre-line; }
+.thanks { margin-top: 3mm; }
+.photos { margin-top: 4mm; }
+.photo-row + .photo-row { margin-top: 2.5mm; }
+.photo-row img + img { margin-right: 2.5mm; }
+.signature { position: absolute; bottom: 0; left: 0; margin: 0; width: auto; }
+{% endblock %}
+
+{% block content %}
+<div class="report">
+  {% if data.summary %}<p>{{ data.summary }}</p>{% endif %}
+  <div class="notes">{{ data.notes }}</div>
+  <div class="thanks">תודה רבה.</div>
+</div>
+<div id="content-end"></div>
+
+{% if rows %}
+<div class="photos">
+  {% for row in rows %}
+  <div class="photo-row">{% for p in row %}<img src="{{ p.src }}" style="width: {{ p.w }}mm; height: {{ p.h }}mm;" alt="תמונה מהאתר">{% endfor %}</div>
+  {% endfor %}
+</div>
+<div id="photos-end"></div>
+{% endif %}
+{% endblock %}
+
+{% block signature %}
+<div class="signature" id="signoff-box">
+  <table class="sig-row"><tr>
+    <td class="sig-text">בברכה,<br>{{ signoff.name }}<br>{{ signoff.company }}</td>
+    <td><img class="sig-image" src="{{ assets }}/signature.jpg" alt="חתימה וחותמת"></td>
+  </tr></table>
+</div>
+{% endblock %}

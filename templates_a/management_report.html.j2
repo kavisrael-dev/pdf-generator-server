@@ -1,0 +1,39 @@
+{% extends "base.html.j2" %}
+{# דוח ביקור באתר (דוח ניהול ופיקוח): טקסט חופשי, תמונות, חתימה. גודל התמונות והגופן נקבעים ב-style_a.py. #}
+
+{% block style %}
+.lines { margin-top: 4mm; }
+.photos { margin-top: {{ photos_top }}mm; page-break-inside: avoid; }
+{% if photo %}
+.photo-row + .photo-row { margin-top: {{ photo.gap }}mm; }
+.photo-row img { width: {{ photo.w }}mm; height: {{ photo.h }}mm; object-fit: cover; }
+.photo-row img + img { margin-right: {{ photo.gap }}mm; }
+{% endif %}
+.signature { margin-top: 5mm; width: auto; }
+{% endblock %}
+
+{% block content %}
+<div class="lines">
+  {% for l in lines %}<p class="{{ l.kind }}">{{ l.text }}</p>{% endfor %}
+</div>
+
+{% if photo %}
+<div class="photos">
+  <div class="photos-title">תמונות מהאתר:</div>
+  {% for row in photo_rows %}
+  <div class="photo-row">{% for url in row %}<img src="{{ url }}" alt="תמונה מהאתר">{% endfor %}</div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
+
+{% block signature %}
+<div class="signature">
+  <table class="sig-row"><tr>
+    <td class="sig-text">בברכה,<br>{{ signoff.name }}<br>{{ signoff.company }}</td>
+    <td><img class="sig-image" src="{{ assets }}/signature.jpg" alt="חתימה וחותמת"></td>
+  </tr></table>
+</div>
+{# סימון סוף התוכן — לפי המיקום שלו נמדד כמה גובה נשאר בעמוד #}
+<div id="content-end"></div>
+{% endblock %}

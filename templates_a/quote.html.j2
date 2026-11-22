@@ -1,0 +1,64 @@
+{% extends "base.html.j2" %}
+{# הצעת מחיר — אותו נוסח כמו בתבנית הישנה. שלבי התשלום בטבלה, עם הסכום בשקלים לכל שלב. #}
+
+{% block style %}
+.scope-list td { padding: 0.1mm 0; }
+.scope-list .n { width: 7mm; }
+.price { margin-top: 5mm; font-weight: bold; }
+.stages { width: 132mm; margin-top: 1.5mm; }
+.stages td { padding: 0.7mm 0; border-bottom: 0.4pt dotted {{ c.rule }}; }
+.stages tr:last-child td { border-bottom: 0; }
+.stages .s-letter { width: 8mm; }
+.stages .s-pct { width: 16mm; text-align: center; }
+.stages .s-amt { width: 28mm; }
+.notes { margin-top: 3.5mm; font-size: {{ t.small }}pt; }
+.closing { margin-top: 5mm; page-break-inside: avoid; }
+.closing .approve { width: 60%; padding-left: 10mm; }
+.approve-title { font-size: {{ t.small }}pt; }
+.approve-fields td { padding: 7mm 0 0 6mm; width: 50%; }
+.approve-fields .ln { border-top: 0.6pt solid {{ c.ink }}; padding-top: 0.8mm; font-size: {{ t.label }}pt; text-align: center; }
+.closing .signature { width: auto; margin: 0; padding-top: 2mm; }
+{% endblock %}
+
+{% block content %}
+<div class="section">
+  <p><b>תאור העבודה:</b> {{ data.work_description }}</p>
+  {% if data.architect_name %}<p>על פי תוכניות להצעת מחיר שהועברו במייל האדריכל/ית {{ data.architect_name }}.</p>{% endif %}
+  {% if data.project_location %}<p>המגרש ממוקם ב{{ data.project_location }}</p>{% endif %}
+</div>
+
+<div class="section">
+  <div class="block-title">התכנון כולל:</div>
+  <table class="scope-list">
+    {% for item in data.scope_items %}<tr><td class="n">{{ loop.index }}.</td><td>{{ item }}</td></tr>{% endfor %}
+  </table>
+</div>
+
+<div class="price">שכ"ט עבור הסעיפים הנ"ל <span class="ltr">{{ data.total_price | money }}</span> ש"ח לפני מע"מ.</div>
+<div>השכר ישולם בהעברה בנקאית במועד הגשת חשבון פרופורמה לפי שלבי התקדמות העבודה כדלהלן:</div>
+<table class="stages">
+  {% for s in stages %}
+  <tr>
+    <td class="s-letter">{{ s.letter }}.</td>
+    <td>{{ s.description }}</td>
+    <td class="s-pct ltr">{{ s.percentage }}%</td>
+    <td class="s-amt num">{{ s.amount | money }} ₪</td>
+  </tr>
+  {% endfor %}
+</table>
+
+{% if notes %}<div class="notes">{% for line in notes %}<p>{{ line }}</p>{% endfor %}</div>{% endif %}
+{% endblock %}
+
+{% block signature %}
+<table class="closing"><tr>
+  <td class="approve">
+    <div class="approve-title">לאישור יש לחתום ולהעביר חזרה במייל</div>
+    <table class="approve-fields"><tr>
+      <td><div class="ln">ת.ז</div></td>
+      <td><div class="ln">חתימה</div></td>
+    </tr></table>
+  </td>
+  <td class="signature">בברכה,<br>{{ signoff.name }}<br>{{ signoff.company }}</td>
+</tr></table>
+{% endblock %}

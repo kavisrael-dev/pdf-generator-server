@@ -1,0 +1,55 @@
+{#
+  תבנית הבסיס של עיצוב A — לכל המסמכים הרשמיים של המשרד.
+  סדר המכתב: לוגו ← תאריך ומספרים ← נמען ← הנדון ← תוכן ← פירוט כספי ← תנאים ← חתימה ← פרטי התקשרות.
+  כל מסמך יורש ומחליף רק את הבלוקים שלו. הנתונים מגיעים מוכנים, והתבנית לא מחשבת דבר.
+#}
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<style>
+{% include "style.css.j2" %}
+{% block style %}{% endblock %}
+</style>
+</head>
+<body>
+{# בראש הקוד, כדי שיחזור בכל עמוד #}
+<div class="page-footer"><img src="{{ assets }}/footer.png" alt="פרטי קשר - פ.י.קו הנדסה בע״מ"></div>
+
+{% block header %}
+<div class="letterhead"><img src="{{ assets }}/logo.png" alt="פ.י. קו הנדסה בע״מ"></div>
+{% endblock %}
+
+{% block meta %}
+<table class="head"><tr>
+  <td class="to">
+    <div class="to-name"><span class="k">לכבוד :</span> {{ to_name }}</div>
+    {% for line in to_lines %}<div class="to-line">{{ line }}</div>{% endfor %}
+  </td>
+  <td class="meta-cell">
+    <table class="meta-list">
+      {% for k, v in meta %}<tr><td class="k">{{ k }}</td><td class="v ltr">{{ v }}</td></tr>{% endfor %}
+    </table>
+  </td>
+</tr></table>
+{% endblock %}
+
+{% block subject %}
+<div class="subject">
+  <div><span class="line1">הנדון: {{ subject }}</span></div>
+  {% for line in subject_lines or [] %}<div class="subject-line">{{ line }}</div>{% endfor %}
+</div>
+{% endblock %}
+
+{% block content %}{% endblock %}
+
+{% block signature %}
+<div class="signature">
+  {{ greeting or 'בברכה' }},<br>
+  {{ signoff.name }}<br>
+  {{ signoff.company }}
+</div>
+{% endblock %}
+{% block after %}{% endblock %}
+</body>
+</html>

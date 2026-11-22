@@ -1,0 +1,83 @@
+{# עיצוב A — כל הערכים מגיעים ממשתני העיצוב ב-style_a.py: c = צבעים, t = גופן, page = שוליים #}
+{% if narkisim %}@font-face { font-family: 'Narkisim'; src: url('{{ fonts }}/Narkisim.ttf'); }{% endif %}
+@font-face { font-family: 'Heebo'; font-weight: 400; src: url('{{ fonts }}/Heebo-Regular.ttf'); }
+@font-face { font-family: 'Heebo'; font-weight: 500; src: url('{{ fonts }}/Heebo-Medium.ttf'); }
+@font-face { font-family: 'Heebo'; font-weight: 700; src: url('{{ fonts }}/Heebo-Bold.ttf'); }
+
+@page {
+    size: A4;
+    margin: {{ page.top }}mm {{ page.side }}mm {{ page.bottom }}mm {{ page.side }}mm;
+    @bottom-center { content: element(pageFooter); vertical-align: bottom; }
+}
+/* ציור הבית ופרטי ההתקשרות מנייר המכתבים המקורי, צמודים לפינה הימנית התחתונה. חוזרים בכל עמוד */
+.page-footer { position: running(pageFooter); direction: ltr; text-align: left; height: {{ footer.h }}mm; }
+.page-footer img { display: block; width: {{ footer.w }}mm; height: {{ footer.h }}mm; margin-left: {{ 210 - page.side - footer.w }}mm; }
+
+* { box-sizing: border-box; }
+body {
+    font-family: {{ t.family | safe }};
+    font-size: {{ font_pt or t.body }}pt;
+    line-height: {{ line_height or t.lh }};
+    color: {{ c.ink }};
+    direction: rtl;
+    margin: 0;
+}
+table { width: 100%; border-collapse: collapse; }
+td, th { padding: 0; text-align: right; vertical-align: top; font-weight: normal; }
+p { margin: 0; }
+b, .b { font-weight: bold; }
+.ltr { direction: ltr; unicode-bidi: isolate; }
+.num { text-align: left; direction: ltr; unicode-bidi: isolate; }
+
+/* כותרת: הלוגו המקורי במרכז */
+.letterhead { text-align: center; }
+.letterhead img { width: 88mm; }
+
+/* תאריך ומספרים משמאל, נמען מימין — כמו במכתב המקורי */
+.head { margin-top: 7mm; }
+.to { padding-top: 3mm; }
+.to-name .k { padding-left: 1.5mm; }
+.to-line { margin-right: 13mm; }
+.meta-cell { width: 58mm; }
+.meta-list td { padding: 0.2mm 0; }
+.meta-list .k { width: 30mm; }
+.meta-list .k:after { content: ':'; }
+
+/* הנדון: מודגש וקו תחתון, והשורות שמתחתיו מודגשות — כמו במקור */
+.subject { margin-top: 7mm; font-weight: bold; page-break-after: avoid; }
+.subject .line1 { text-decoration: underline; }
+.subject-line { font-weight: bold; }
+
+.section { margin-top: 4mm; }
+.block-title { font-weight: bold; }
+
+/* טבלאות סכומים */
+.amounts { width: 132mm; margin-top: 6mm; }
+.amounts td { padding: 2mm 0; border-bottom: 0.4pt solid {{ c.rule_soft }}; vertical-align: bottom; }
+.amounts .num { width: 34mm; }
+.amounts .muted td { color: {{ c.ink_2 }}; }
+.amounts .sub { color: {{ c.ink_2 }}; font-size: {{ t.small }}pt; }
+.amounts .total td { border-top: 0.8pt solid {{ c.ink }}; border-bottom: 0; font-weight: bold; padding-top: 2.5mm; }
+.amounts .muted + tr td, .amounts tr:first-child td { }
+
+.pay { width: 140mm; margin-top: 7mm; }
+.pay td { padding: 0.8mm 0; }
+.pay .k { width: 34mm; }
+.pay .k:after { content: ':'; }
+.confirm { margin-top: 4mm; font-weight: bold; }
+
+/* חתימה: בצד שמאל, כמו במקור */
+.signature { margin-top: 7mm; margin-right: auto; width: 62mm; page-break-inside: avoid; }
+.sig-row { width: auto; margin-right: auto; }
+.sig-row td { vertical-align: middle; }
+.sig-row .sig-text { padding-right: 4mm; white-space: nowrap; }
+.sig-image { height: 16mm; display: block; }
+
+/* תמונות מהשטח */
+.photos-title { font-weight: bold; margin-bottom: 1.5mm; }
+.photo-row { display: flex; justify-content: center; }
+.photo-row img { flex-shrink: 0; object-fit: contain; border: 0.4pt solid #b8b8b8; }
+
+.lines p.gap { height: 0.7em; }
+.lines p.head { font-weight: bold; margin-top: 1.5mm; }
+.lines p.item { padding-right: 4mm; }

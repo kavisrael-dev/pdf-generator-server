@@ -1,0 +1,25 @@
+{% extends "base.html.j2" %}
+{# חשבון: רגיל או חלקי, להסכם ניהול ופיקוח, או עבודה נוספת. כל השורות והסכומים מגיעים מוכנים. #}
+
+{% block content %}
+{% if intro %}<div class="section">{{ intro }}</div>{% endif %}
+
+<table class="amounts">
+  {% for r in rows %}
+  <tr{% if r.muted %} class="muted"{% endif %}>
+    <td>{{ r.label }}{% if r.sub %} <span class="sub">· {{ r.sub }}</span>{% endif %}</td>
+    <td class="num"{% if r.rtl %} style="direction: rtl;"{% endif %}>{{ r.amount }}</td>
+  </tr>
+  {% endfor %}
+  <tr class="total"><td>סה"כ לתשלום</td><td class="num">{{ total }}</td></tr>
+</table>
+
+<table class="pay">
+  {% for k, v in pay %}<tr><td class="k">{{ k }}</td><td>{{ v }}</td></tr>{% endfor %}
+</table>
+<div class="confirm">נא לשלוח אישור ביצוע.</div>
+{% endblock %}
+
+{% block signature %}
+<div class="signature">בכבוד רב,<br>{{ signoff.name }}<br>{{ signoff.company }}</div>
+{% endblock %}

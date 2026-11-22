@@ -1,0 +1,144 @@
+{% extends "base.html.j2" %}
+{# הסכם להזמנת שירותי ניהול ופיקוח — אותו נוסח בדיוק כמו בתבנית הישנה, בעיצוב A.
+   הגופן והרווח מעל החתימות (signs_top) נקבעים ב-style_a.py, כדי שההסכם ייכנס לעמוד אחד והחתימות ירדו לתחתיתו. #}
+
+{% block style %}
+.c-meta { margin-top: 5mm; }
+.c-meta .meta-cell { width: 62mm; }
+.c-title { text-align: center; margin-top: 5mm; }
+.c-title h1 { margin: 0; font-size: 1.3em; font-weight: bold; text-decoration: underline; line-height: 1.3; }
+.c-title .scope { font-weight: bold; margin-top: 0.5mm; }
+.lead { text-align: center; margin-top: 1.5mm; }
+.lead .blank { display: inline-block; width: 32mm; border-bottom: 0.6pt solid {{ c.ink }}; margin: 0 1.5mm; }
+.parties { margin-top: 4mm; table-layout: fixed; }
+.parties .gap { width: 8mm; }
+.party { border-top: 0.8pt solid {{ c.ink }}; padding-top: 1.5mm; }
+.party .tag { font-weight: bold; }
+.party .det { color: {{ c.ink_2 }}; }
+.recital { margin-top: 4mm; }
+.sec { margin-top: 3.5mm; }
+.sec-h { font-weight: bold; border-bottom: 0.4pt solid {{ c.rule }}; padding-bottom: 0.5mm; margin-bottom: 1mm; }
+.project { font-weight: bold; }
+.cols { margin-top: 3.5mm; table-layout: fixed; }
+.cols .gap { width: 8mm; }
+.cols .sec { margin-top: 0; }
+.item { position: relative; padding-right: 6mm; }
+.item .i { position: absolute; right: 0; top: 0; }
+.by { margin-top: 3mm; }
+.fee td { vertical-align: top; }
+.fee .amount { width: 50mm; padding-left: 6mm; }
+.fee .amount .num-big { font-size: 1.35em; font-weight: bold; }
+.fee .amount .note { color: {{ c.ink_2 }}; }
+.signs { margin-top: {{ signs_top }}mm; page-break-inside: avoid; }
+.signs .witness { text-align: center; font-weight: bold; margin-bottom: 11mm; }
+.sign-row { table-layout: fixed; }
+.sign-row .gap { width: 22mm; }
+.sign { text-align: center; }
+.sign .line { border-top: 0.7pt solid {{ c.ink }}; padding-top: 1mm; font-weight: bold; }
+.sign .cap { font-size: {{ t.label }}pt; color: {{ c.ink_2 }}; }
+{% endblock %}
+
+{% block meta %}
+<table class="c-meta"><tr>
+  <td></td>
+  <td class="meta-cell">
+    <table class="meta-list">
+      {% for k, v in meta %}<tr><td class="k">{{ k }}</td><td class="v ltr">{{ v }}</td></tr>{% endfor %}
+    </table>
+  </td>
+</tr></table>
+{% endblock %}
+
+{% block subject %}
+<div class="c-title">
+  <h1>{{ title }}</h1>
+  {% if data.scope_label %}<div class="scope">{{ data.scope_label }}</div>{% endif %}
+</div>
+<div class="lead">הסכם זה נערך ונחתם ביום<span class="blank">&nbsp;</span>בין הצדדים:</div>
+{% endblock %}
+
+{% block content %}
+{% macro items(list) %}
+  {% for item in list %}<div class="item"><span class="i">{{ letters[loop.index0] }}.</span>{{ item }}</div>{% endfor %}
+{% endmacro %}
+{% macro section(n, heading, list) %}
+  <div class="sec">
+    <div class="sec-h">{{ n }}. {{ heading }}</div>
+    {{ items(list) }}
+  </div>
+{% endmacro %}
+
+<table class="parties"><tr>
+  <td class="party">
+    <div class="tag">להלן "המזמין"</div>
+    <div class="b">{{ data.client_name }}</div>
+    <div class="det">{{ data.client_address }}</div>
+    {% if data.client_id_number or data.client_phone %}
+    <div class="det">
+      {%- if data.client_id_number %}ת.ז <span class="ltr">{{ data.client_id_number }}</span>{% endif %}
+      {%- if data.client_id_number and data.client_phone %}, {% endif %}
+      {%- if data.client_phone %}טלפון <span class="ltr">{{ data.client_phone }}</span>{% endif -%}
+    </div>
+    {% endif %}
+    {% if data.client_email %}<div class="det"><span class="ltr">{{ data.client_email }}</span></div>{% endif %}
+  </td>
+  <td class="gap"></td>
+  <td class="party">
+    <div class="tag">להלן "המפקח"</div>
+    <div class="b">פ.י. קו הנדסה בע"מ</div>
+    <div class="det">קיבוץ מעוז חיים</div>
+    <div class="det">לפי תקנות המהנדסים והאדריכלים תש"ח 1958</div>
+  </td>
+</tr></table>
+
+<div class="recital">
+  <b>הואיל</b> והמזמין מעוניין למסור למפקח את {{ scope_text }},<br>
+  <b>לפיכך הוסכם בין הצדדים כדלקמן:</b>
+</div>
+
+<div class="sec">
+  <div class="sec-h">1. תיאור הפרויקט</div>
+  <div class="project">{{ project }}.</div>
+  <div>{{ general_note }}</div>
+  {% if data.scope_note %}<div><b>{{ data.scope_note }}</b></div>{% endif %}
+</div>
+
+{% if data.pre_construction_items and data.supervision_items %}
+<table class="cols"><tr>
+  <td>{{ section(2, pre_title, data.pre_construction_items) }}</td>
+  <td class="gap"></td>
+  <td>{{ section(3, sup_title, data.supervision_items) }}</td>
+</tr></table>
+{% elif data.pre_construction_items %}
+{{ section(2, pre_title, data.pre_construction_items) }}
+{% else %}
+{{ section(2, sup_title, data.supervision_items) }}
+{% endif %}
+
+<div class="by">השירותים המפורטים בהסכם זה יינתנו על ידי המהנדס <b>ישראל פרוכטמן</b>.</div>
+
+<div class="sec">
+  <div class="sec-h">{{ fee_section }}. שכר טרחה ותנאי תשלום</div>
+  <table class="fee"><tr>
+    <td class="amount">
+      <div>{{ fee.label }}</div>
+      <div class="num-big"><span class="ltr">{{ data.monthly_fee | money }}</span> ₪</div>
+      <div class="note">{{ fee.note }}</div>
+    </td>
+    <td>{{ items(data.payment_terms_items) }}</td>
+  </tr></table>
+</div>
+{% endblock %}
+
+{% block signature %}
+<div class="signs">
+  <div class="witness">ולראיה באו הצדדים על החתום</div>
+  <table class="sign-row"><tr>
+    <td class="sign"><div class="line">המזמין</div><div class="cap">שם, חתימה ותאריך</div></td>
+    <td class="gap"></td>
+    <td class="sign"><div class="line">המפקח</div><div class="cap">פ.י. קו הנדסה בע"מ - חתימה וחותמת</div></td>
+  </tr></table>
+</div>
+{# סימון סוף התוכן — לפי המיקום שלו נמדד כמה גובה נשאר בעמוד #}
+<div id="content-end"></div>
+{% endblock %}

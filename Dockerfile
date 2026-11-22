@@ -9,4 +9,7 @@ COPY main.py .
 COPY site_photos.py .
 COPY financial_report.py .
 COPY extra_work_invoice.py .
+COPY style_a.py .
+COPY templates_a ./templates_a
+COPY assets ./assets
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
