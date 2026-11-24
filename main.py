@@ -255,6 +255,19 @@ class InvoiceData(BaseModel):
     payment_terms: str = "שוטף+30"
     due_date: str = ""             # 30/06/2026
     bank_details: str = 'בנק פועלים סניף 717, חשבון 534731, ע"ש פ.י.קו הנדסה בע"מ'
+    draft: bool = False            # טיוטה לצפייה לפני האישור באמנון בפיקו: סימן מים "טיוטה" על כל עמוד
+
+# סימן מים לטיוטה. position: fixed חוזר בכל עמוד ב-WeasyPrint
+DRAFT_MARK = (
+    '<div style="position: fixed; top: 36%; left: 0; width: 100%; text-align: center; '
+    'font-size: 120pt; font-weight: bold; color: rgba(190, 30, 30, 0.18); '
+    'transform: rotate(-30deg); z-index: 1000;">טיוטה</div>'
+)
+
+
+def with_draft_mark(html: str) -> str:
+    i = html.rfind("</body>")
+    return html[:i] + DRAFT_MARK + html[i:] if i >= 0 else html + DRAFT_MARK
 
 INVOICE_TEMPLATE = """
 <!DOCTYPE html>
@@ -1300,12 +1313,17 @@ async def generate_invoice(inv: InvoiceData, style: str | None = None):
         # חישוב מע"מ וסה"כ בקוד — אף פעם לא מוזן ידנית, כדי שלא יצא חשבון שגוי
         vat_amount = round(inv.payment_amount * inv.vat_percent / 100)
         total_with_vat = inv.payment_amount + vat_amount
-        a = style_a_or_none(style, "invoice", lambda sa: sa.invoice_pdf(inv, vat_amount, total_with_vat))
+        if inv.draft:
+            a = style_a_or_none(style, "invoice", lambda sa: HTML(string=with_draft_mark(sa.invoice_html(inv, vat_amount, total_with_vat))).write_pdf())
+        else:
+            a = style_a_or_none(style, "invoice", lambda sa: sa.invoice_pdf(inv, vat_amount, total_with_vat))
         if a is not None:
             return pdf_response(a, "invoice.pdf")
 
         template = Template(INVOICE_TEMPLATE)
         rendered_html = template.render(data=inv, vat_amount=vat_amount, total_with_vat=total_with_vat)
+        if inv.draft:
+            rendered_html = with_draft_mark(rendered_html)
         pdf_bytes = HTML(string=rendered_html).write_pdf()
 
         return Response(
